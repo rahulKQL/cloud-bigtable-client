@@ -60,6 +60,11 @@ public class SequenceFileSourceTest {
   public SequenceFileSourceTest() {
   }
 
+  //NOTE: workaround with winutils.exe or hadoop.dll for running the test cases.
+  static {
+    System.setProperty("hadoop.home.dir", "D:\\winutil\\");
+  }
+
   @Test
   public void testSimpleWritable() throws IOException {
     Configuration config = new Configuration(false);
@@ -72,6 +77,8 @@ public class SequenceFileSourceTest {
     // Write data to read
     File targetFile = workDir.newFile();
 
+    //TODO: Test case gives NullPointerError here for SequenceFile#createWriter
+    //NOTE: This works with IDE not with mvn build
     try (Writer writer = SequenceFile.createWriter(config,
         Writer.file(new org.apache.hadoop.fs.Path(targetFile.toString())),
         Writer.keyClass(Text.class),

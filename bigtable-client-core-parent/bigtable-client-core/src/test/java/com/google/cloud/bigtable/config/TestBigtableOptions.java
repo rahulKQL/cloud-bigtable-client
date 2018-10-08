@@ -147,10 +147,12 @@ public class TestBigtableOptions {
       Field theEnvironmentField = processEnvironmentClass.getDeclaredField("theEnvironment");
       theEnvironmentField.setAccessible(true);
       Map<String, String> env = (Map<String, String>) theEnvironmentField.get(null);
+	  env.clear();
       env.putAll(newEnv);
       Field theCaseInsensitiveEnvironmentField = processEnvironmentClass.getDeclaredField("theCaseInsensitiveEnvironment");
       theCaseInsensitiveEnvironmentField.setAccessible(true);
       Map<String, String> cienv = (Map<String, String>)     theCaseInsensitiveEnvironmentField.get(null);
+	  cienv.clear();
       cienv.putAll(newEnv);
     } catch (NoSuchFieldException e) {
       try {

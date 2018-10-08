@@ -16,6 +16,9 @@
 package com.google.cloud.bigtable.beam.sequencefiles;
 
 import com.google.common.collect.Lists;
+
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.List;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -77,9 +80,14 @@ public class SequenceFileSinkTest {
 
     writePipeline.run().waitUntilFinish();
 
+    File[] files = workDir.getRoot().listFiles();
+    if(files.length != 1) {
+      throw new FileNotFoundException("Sequence File not found");
+    }
+    String sequenceFilePath = files[0].getAbsolutePath();
 
     SequenceFileSource<Text, Text> source = new SequenceFileSource<>(
-        StaticValueProvider.of(workDir.getRoot().toString() + "/*"),
+        StaticValueProvider.of(sequenceFilePath),
         Text.class, WritableSerialization.class,
         Text.class, WritableSerialization.class,
         SequenceFile.SYNC_INTERVAL
