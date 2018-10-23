@@ -15,11 +15,10 @@
  */
 package com.google.cloud.bigtable.hbase.adapters.read;
 
-import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.common.base.Function;
 
 /**
- * Hooks for modifying a ReadRowsRequest before being sent to Cloud Bigtable.
+ * Hooks for modifying a T before being sent to Cloud Bigtable.
  *
  * Note that it is expected that this will be extended to include post-read
  * hooks to transform Rows when appropriate.
@@ -27,20 +26,20 @@ import com.google.common.base.Function;
  * @author sduskis
  * @version $Id: $Id
  */
-public interface ReadHooks {
+public interface ReadHooks<T, U> {
 
   /**
-   * Add a Function that will modify the ReadRowsRequest before it is sent to Cloud Bigtable.
+   * Add a Function that will modify the T before it is sent to Cloud Bigtable.
    *
    * @param newHook a {@link com.google.common.base.Function} object.
    */
-  void composePreSendHook(Function<ReadRowsRequest, ReadRowsRequest> newHook);
+  void composePreSendHook(Function<T, U> newHook);
 
   /**
    * Apply all pre-send hooks to the given request.
    *
-   * @param readRowsRequest a {@link com.google.bigtable.v2.ReadRowsRequest} object.
-   * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
+   * @param request a T object.
+   * @return a U object.
    */
-  ReadRowsRequest applyPreSendHook(ReadRowsRequest readRowsRequest);
+  U applyPreSendHook(T request);
 }

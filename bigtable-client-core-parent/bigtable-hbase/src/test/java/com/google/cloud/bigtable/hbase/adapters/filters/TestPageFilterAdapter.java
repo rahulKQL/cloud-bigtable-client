@@ -18,7 +18,7 @@ package com.google.cloud.bigtable.hbase.adapters.filters;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapterContext.ContextCloseable;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 
 import org.apache.hadoop.hbase.client.Scan;
@@ -42,7 +42,7 @@ public class TestPageFilterAdapter {
   PageFilterAdapter pageFilterAdapter = new PageFilterAdapter();
   @Test
   public void mustPassOneIsNotSupported() {
-    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new ReadRowsHooks());
     PageFilter filter = new PageFilter(20);
     FilterList filterList = new FilterList(Operator.MUST_PASS_ONE, filter);
     try(ContextCloseable ignroed = context.beginFilterList(filterList)) {
@@ -55,7 +55,7 @@ public class TestPageFilterAdapter {
 
   @Test
   public void topLevelPageFilterIsSupported() {
-    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new ReadRowsHooks());
     PageFilter filter = new PageFilter(20);
     FilterSupportStatus status =
         pageFilterAdapter.isFilterSupported(context, filter);
@@ -65,7 +65,7 @@ public class TestPageFilterAdapter {
 
   @Test
   public void mustPassAllIsSupportedAtTopLevel() {
-    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new ReadRowsHooks());
     PageFilter filter = new PageFilter(20);
     FilterList filterList = new FilterList(Operator.MUST_PASS_ALL, filter);
     try(ContextCloseable ignored = context.beginFilterList(filterList)) {
@@ -78,7 +78,7 @@ public class TestPageFilterAdapter {
 
   @Test
   public void pageFilterMustBeInLastPosition() {
-    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new ReadRowsHooks());
     ValueFilter valueFilter =
         new ValueFilter(CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes("value")));
     PageFilter pageFilter = new PageFilter(20);
@@ -94,7 +94,7 @@ public class TestPageFilterAdapter {
 
   @Test
   public void mustPassAllIsNotSupportedBelowTopLevel() {
-    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(new Scan(), new ReadRowsHooks());
     PageFilter pageFilter = new PageFilter(20);
     FilterList secondLevelList = new FilterList(Operator.MUST_PASS_ALL, pageFilter);
     FilterList topLevelList = new FilterList(Operator.MUST_PASS_ALL, secondLevelList);
@@ -110,7 +110,7 @@ public class TestPageFilterAdapter {
 
   @Test
   public void pageFilterIsAppliedToReadRowsRequest() throws IOException {
-    ReadHooks hooks = new DefaultReadHooks();
+    ReadHooks<ReadRowsRequest, ReadRowsRequest> hooks = new ReadRowsHooks();
     FilterAdapterContext context = new FilterAdapterContext(new Scan(), hooks);
     PageFilter pageFilter = new PageFilter(20);
     Filters.Filter adaptedFilter = pageFilterAdapter.adapt(context, pageFilter);
