@@ -20,19 +20,28 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.google.cloud.bigtable.hbase.util.ByteStringer;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.hadoop.hbase.client.Scan;
+
+import com.google.bigtable.repackaged.com.google.bigtable.admin.v2.Instance;
+import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
+import com.google.bigtable.repackaged.com.google.bigtable.v2.RowRange;
+import com.google.bigtable.repackaged.com.google.bigtable.v2.RowSet;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowRange;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowSet;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
+import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.QueryReadHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 
 /**
@@ -272,12 +281,23 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
     @Override
     public CloudBigtableScanConfiguration build() {
       if (request == null) {
-        ReadHooks readHooks = new DefaultReadHooks();
+        ReadHooks<Query, Query> readHooks = new QueryReadHooks();
         if (scan == null) {
           scan = new Scan();
         }
-        ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-        request =  StaticValueProvider.of(readHooks.applyPreSendHook(builder.build()));
+        
+        Query query = Query.create(tableId.get());
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+        query = readHooks.applyPreSendHook(query);
+        ValueProvider<String> appProfileIdValue = additionalConfiguration.get(BigtableOptionsFactory.APP_PROFILE_ID_KEY);
+        String appProfileId = "";
+        if(appProfileIdValue != null) {
+          appProfileId = appProfileIdValue.get();
+        }
+        RequestContext reqContex = RequestContext.create(
+          InstanceName.of(projectId.get(), instanceId.get()), 
+          appProfileId);
+        request =  StaticValueProvider.of(query.toProto(reqContex));
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
           request, additionalConfiguration);

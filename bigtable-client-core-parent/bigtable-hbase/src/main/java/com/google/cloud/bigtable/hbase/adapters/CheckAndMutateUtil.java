@@ -20,6 +20,7 @@ import com.google.bigtable.v2.CheckAndMutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.RowFilter;
+import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 import com.google.cloud.bigtable.hbase.filter.TimestampRangeFilter;
 import com.google.common.base.Function;
@@ -45,7 +46,7 @@ public class CheckAndMutateUtil {
 
   // ReadHooks don't make sense from conditional mutations. If any filter attempts to make use of
   // them (which they shouldn't since we built the filter), throw an exception.
-  private static final ReadHooks UNSUPPORTED_READ_HOOKS = new ReadHooks() {
+  private static final ReadHooks<ReadRowsRequest, ReadRowsRequest> UNSUPPORTED_READ_HOOKS = new ReadHooks<ReadRowsRequest, ReadRowsRequest>() {
     @Override
     public void composePreSendHook(Function<ReadRowsRequest, ReadRowsRequest> newHook) {
       throw new IllegalStateException(
@@ -228,8 +229,8 @@ public class CheckAndMutateUtil {
         }
         requestBuilder.addAllTrueMutations(mutations);
       }
-      requestBuilder.setPredicateFilter(
-          Adapters.SCAN_ADAPTER.buildFilter(scan, UNSUPPORTED_READ_HOOKS));
+      Filters.Filter filters = Adapters.SCAN_ADAPTER.buildFilter(scan, UNSUPPORTED_READ_HOOKS);
+      requestBuilder.setPredicateFilter(filters.toProto());
 
       return requestBuilder.build();
     }

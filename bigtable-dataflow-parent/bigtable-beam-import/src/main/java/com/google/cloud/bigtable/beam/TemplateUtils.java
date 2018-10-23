@@ -16,10 +16,13 @@
 package com.google.cloud.bigtable.beam;
 
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.beam.sequencefiles.ExportJob.ExportOptions;
 import com.google.cloud.bigtable.beam.sequencefiles.ImportJob.ImportOptions;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 import java.io.Serializable;
 import java.nio.charset.CharacterCodingException;
@@ -65,16 +68,14 @@ public class TemplateUtils {
     private final ValueProvider<Integer> maxVersion;
     private final ValueProvider<String> filter;
     private ReadRowsRequest cachedRequest;
+    private final ExportOptions options;
 
-    RequestValueProvider(
-        ValueProvider<String> start,
-        ValueProvider<String> stop,
-        ValueProvider<Integer> maxVersion,
-        ValueProvider<String> filter) {
-      this.start = start;
-      this.stop = stop;
-      this.maxVersion = maxVersion;
-      this.filter = filter;
+    RequestValueProvider(ExportOptions options) {
+      this.start = options.getBigtableStartRow();
+      this.stop = options.getBigtableStopRow();
+      this.maxVersion = options.getBigtableMaxVersions();
+      this.filter = options.getBigtableFilter();
+      this.options = options;
     }
 
     @Override
@@ -97,10 +98,17 @@ public class TemplateUtils {
             throw new RuntimeException(e);
           }
         }
-
-        ReadHooks readHooks = new DefaultReadHooks();
-        ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-        cachedRequest = readHooks.applyPreSendHook(builder.build());
+        //TODO rahulkql: Changed RequestValueProvider constructor to avail necessary
+        // properties, for Query and RequestContext instantiation.
+        Query query = Query.create(options.getBigtableTableId().get());
+        ReadHooks<ReadRowsRequest, ReadRowsRequest> readHooks = new ReadRowsHooks();
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+        RequestContext reqContex = RequestContext.create(
+              InstanceName.of(options.getBigtableProject().get(), 
+                    options.getBigtableInstanceId().get()),
+              options.getBigtableAppProfileId().get());
+        
+        cachedRequest = readHooks.applyPreSendHook(query.toProto(reqContex));
       }
       return cachedRequest;
     }
@@ -125,11 +133,7 @@ public class TemplateUtils {
   /** Builds CloudBigtableScanConfiguration from input runtime parameters for export job. */
   public static CloudBigtableScanConfiguration BuildExportConfig(ExportOptions opts) {
     ValueProvider<ReadRowsRequest> request =
-        new RequestValueProvider(
-            opts.getBigtableStartRow(),
-            opts.getBigtableStopRow(),
-            opts.getBigtableMaxVersions(),
-            opts.getBigtableFilter());
+        new RequestValueProvider(opts);
     CloudBigtableScanConfiguration.Builder configBuilder =
         new CloudBigtableScanConfiguration.Builder()
             .withProjectId(opts.getBigtableProject())

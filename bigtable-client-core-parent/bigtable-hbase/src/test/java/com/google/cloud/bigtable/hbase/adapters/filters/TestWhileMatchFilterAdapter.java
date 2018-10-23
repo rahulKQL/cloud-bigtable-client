@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowFilter.Chain;
 import com.google.bigtable.v2.RowFilter.Interleave;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
 import com.google.common.collect.ImmutableList;
 
 import org.apache.hadoop.hbase.Cell;
@@ -61,7 +61,7 @@ public class TestWhileMatchFilterAdapter {
 
   @Before
   public void setup() {
-    emptyScanContext = new FilterAdapterContext(new Scan(), new DefaultReadHooks());
+    emptyScanContext = new FilterAdapterContext(new Scan(), new ReadRowsHooks());
   }
 
   @Test
@@ -147,7 +147,7 @@ public class TestWhileMatchFilterAdapter {
     WhileMatchFilter filter = new WhileMatchFilter(new PageFilter(30));
     Scan scan = new Scan();
     scan.setFilter(filter);
-    FilterAdapterContext context = new FilterAdapterContext(scan, new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(scan, new ReadRowsHooks());
     assertEquals(
         FilterSupportStatus.SUPPORTED, instance.isFilterSupported(context, filter));
   }
@@ -163,7 +163,7 @@ public class TestWhileMatchFilterAdapter {
     WhileMatchFilter filter = new WhileMatchFilter(notSupported);
     Scan scan = new Scan();
     scan.setFilter(filter);
-    FilterAdapterContext context = new FilterAdapterContext(scan, new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(scan, new ReadRowsHooks());
     assertFalse(instance.isFilterSupported(context, filter).isSupported());
   }
 
@@ -175,7 +175,7 @@ public class TestWhileMatchFilterAdapter {
     FilterList list = new FilterList(Operator.MUST_PASS_ONE, whileMatchFilter);
     Scan scan = new Scan();
     scan.setFilter(list);
-    FilterAdapterContext context = new FilterAdapterContext(scan, new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(scan, new ReadRowsHooks());
     assertFalse(instance.isFilterSupported(context, whileMatchFilter).isSupported());
   }
 
@@ -188,7 +188,7 @@ public class TestWhileMatchFilterAdapter {
     FilterList chainList = new FilterList(Operator.MUST_PASS_ALL, interleaveList);
     Scan scan = new Scan();
     scan.setFilter(chainList);
-    FilterAdapterContext context = new FilterAdapterContext(scan, new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(scan, new ReadRowsHooks());
     assertFalse(instance.isFilterSupported(context, whileMatchFilter).isSupported());
   }
 
@@ -201,7 +201,7 @@ public class TestWhileMatchFilterAdapter {
     FilterList interleaveList = new FilterList(Operator.MUST_PASS_ONE, chainList);
     Scan scan = new Scan();
     scan.setFilter(interleaveList);
-    FilterAdapterContext context = new FilterAdapterContext(scan, new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(scan, new ReadRowsHooks());
     assertFalse(instance.isFilterSupported(context, whileMatchFilter).isSupported());
   }
 
@@ -216,7 +216,7 @@ public class TestWhileMatchFilterAdapter {
     FilterList chainList = new FilterList(Operator.MUST_PASS_ALL, whileMatchFilter, interleaveList);
     Scan scan = new Scan();
     scan.setFilter(chainList);
-    FilterAdapterContext context = new FilterAdapterContext(scan, new DefaultReadHooks());
+    FilterAdapterContext context = new FilterAdapterContext(scan, new ReadRowsHooks());
     assertTrue(instance.isFilterSupported(context, whileMatchFilter).isSupported());
   }
 }

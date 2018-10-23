@@ -21,6 +21,9 @@ import java.util.Objects;
 import com.google.cloud.bigtable.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.client.Scan;
 
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowRange;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowSet;
@@ -28,7 +31,7 @@ import com.google.bigtable.repackaged.com.google.cloud.bigtable.grpc.BigtableIns
 import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
 import com.google.cloud.bigtable.batch.common.ByteStringUtil;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 import com.google.cloud.dataflow.sdk.io.range.ByteKeyRange;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
@@ -173,12 +176,17 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
     @Override
     public CloudBigtableScanConfiguration build() {
       if (request == null) {
-        ReadHooks readHooks = new DefaultReadHooks();
+        ReadHooks<ReadRowsRequest, ReadRowsRequest> readHooks = new ReadRowsHooks();
         if (scan == null) {
           scan = new Scan();
         }
-        ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-        request = readHooks.applyPreSendHook(builder.build());
+        Query query = Query.create(tableId);
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+
+        //TODO rahulkql: AppProfileId is not available here, need to change this after review.
+        RequestContext reqContex = RequestContext.create(
+            InstanceName.of(projectId, instanceId), "");
+        request = readHooks.applyPreSendHook(query.toProto(reqContex));
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
           request, additionalConfiguration);
@@ -196,6 +204,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
    * @param request The {@link ReadRowsRequest} that will be used to filter the table.
    * @param additionalConfiguration A {@link Map} with additional connection configuration.
    */
+  //TODO rahulkql:This also needs to be updated with Query 
   protected CloudBigtableScanConfiguration(String projectId, String instanceId, String tableId,
       ReadRowsRequest request, Map<String, String> additionalConfiguration) {
     super(projectId, instanceId,  tableId, additionalConfiguration);

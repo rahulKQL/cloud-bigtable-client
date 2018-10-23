@@ -20,6 +20,7 @@ import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.MutationApi;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
@@ -39,7 +40,7 @@ import com.google.bigtable.v2.ReadModifyWriteRowRequest;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.QueryReadHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 
 /**
@@ -173,10 +174,11 @@ public class HBaseRequestAdapter {
    * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
    */
   public ReadRowsRequest adapt(Get get) {
-    ReadHooks readHooks = new DefaultReadHooks();
-    ReadRowsRequest.Builder builder = Adapters.GET_ADAPTER.adapt(get, readHooks);
-    builder.setTableName(getTableNameString());
-    return readHooks.applyPreSendHook(builder.build());
+    ReadHooks<Query, Query> readHooks = new QueryReadHooks();
+    Query query = Query.create(bigtableTableName.getTableId());
+    //TODO: change GET_ADAPTER to adapt to {@link com.google.cloud.bigtable.data.v2.models.Query} model
+    Adapters.GET_ADAPTER.adapt(get, readHooks, query);
+    return readHooks.applyPreSendHook(query).toProto(requestContext);
   }
 
   /**
@@ -186,10 +188,11 @@ public class HBaseRequestAdapter {
    * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
    */
   public ReadRowsRequest adapt(Scan scan) {
-    ReadHooks readHooks = new DefaultReadHooks();
-    ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-    builder.setTableName(getTableNameString());
-    return readHooks.applyPreSendHook(builder.build());
+    ReadHooks<Query, Query> readHooks = new QueryReadHooks();
+    Query query = Query.create(bigtableTableName.getTableId());
+    //TODO: change SCAN_ADAPTER to adapt to {@link com.google.cloud.bigtable.data.v2.models.Query} model
+    Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+    return readHooks.applyPreSendHook(query).toProto(requestContext);
   }
 
   /**

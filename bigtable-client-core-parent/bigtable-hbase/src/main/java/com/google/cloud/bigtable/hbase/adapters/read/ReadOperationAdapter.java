@@ -15,7 +15,7 @@
  */
 package com.google.cloud.bigtable.hbase.adapters.read;
 
-import com.google.bigtable.v2.ReadRowsRequest;
+import com.google.cloud.bigtable.data.v2.models.Query;
 
 import org.apache.hadoop.hbase.client.Operation;
 
@@ -31,7 +31,7 @@ public interface ReadOperationAdapter<T extends Operation> {
    *
    * @param request a T object.
    * @param readHooks a {@link com.google.cloud.bigtable.hbase.adapters.read.ReadHooks} object.
-   * @return a {@link com.google.bigtable.v2.ReadRowsRequest.Builder} object.
+   * @param query a {@link com.google.cloud.bigtable.data.v2.models.Query} object.
    */
-  ReadRowsRequest.Builder adapt(T request, ReadHooks readHooks);
+  void adapt(T request, ReadHooks readHooks, Query query);
 }

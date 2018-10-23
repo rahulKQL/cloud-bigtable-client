@@ -16,7 +16,7 @@
 package com.google.cloud.bigtable.hbase.adapters.filters;
 
 import com.google.bigtable.v2.RowFilter;
-import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
 import com.google.cloud.bigtable.util.RowKeyWrapper;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableRangeSet;
@@ -141,11 +141,11 @@ public class TestFilterListAdapter {
         pageFilter);
     FilterAdapter adapter = FilterAdapter.buildAdapter();
     Optional<RowFilter> adapted =
-        adapter.adaptFilter(new FilterAdapterContext(new Scan(), new DefaultReadHooks()),
+        adapter.adaptFilter(new FilterAdapterContext(new Scan(), new ReadRowsHooks()),
             filterList);
     Assert.assertTrue(adapted.isPresent());
     Optional<RowFilter> qualifierAdapted =
-        adapter.adaptFilter(new FilterAdapterContext(new Scan(), new DefaultReadHooks()),
+        adapter.adaptFilter(new FilterAdapterContext(new Scan(), new ReadRowsHooks()),
             filterList.getFilters().get(0));
     Assert.assertEquals(qualifierAdapted.get(), adapted.get());
   }
