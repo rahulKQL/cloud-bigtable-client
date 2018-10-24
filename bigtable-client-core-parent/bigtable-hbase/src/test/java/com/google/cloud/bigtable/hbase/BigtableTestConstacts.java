@@ -20,13 +20,13 @@ import com.google.cloud.bigtable.data.v2.models.InstanceName;
 
 /**
  * This class contains common constants to be used between multiple test classes.
- * 
+ *
  */
 public class BigtableTestConstacts {
 
   private BigtableTestConstacts() {
   }
-  
+
   public static final String PROJECT_ID = "test-project-id";
   public static final String INSTANCE_ID = "test-instance-id";
   public static final String TABLE_ID = "test-table-id";

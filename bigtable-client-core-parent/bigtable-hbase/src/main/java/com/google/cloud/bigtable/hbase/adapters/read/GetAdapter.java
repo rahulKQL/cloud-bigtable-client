@@ -57,7 +57,7 @@ public class GetAdapter implements ReadOperationAdapter<Get> {
   public void adapt(Get operation, ReadHooks readHooks, Query query) {
     Scan operationAsScan = new Scan(addKeyOnlyFilter(operation));
     scanAdapter.throwIfUnsupportedScan(operationAsScan);
-    
+
     query.rowKey(ByteString.copyFrom(operation.getRow()))
           .filter(scanAdapter.buildFilter(operationAsScan, readHooks));
   }

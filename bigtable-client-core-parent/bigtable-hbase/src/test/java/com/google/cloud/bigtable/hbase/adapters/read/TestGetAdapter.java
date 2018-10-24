@@ -19,12 +19,7 @@ import static com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
 import static com.google.cloud.bigtable.hbase.BigtableTestConstacts.REQUEST_CONTEXT;
 import static com.google.cloud.bigtable.hbase.BigtableTestConstacts.TABLE_ID;
 
-import com.google.bigtable.v2.ReadRowsRequest;
-import com.google.bigtable.v2.RowFilter;
-import com.google.bigtable.v2.RowFilter.Chain;
-import com.google.bigtable.v2.RowFilter.Interleave;
 import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.hbase.BigtableTestConstacts;
 import com.google.cloud.bigtable.hbase.DataGenerationHelper;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
 import com.google.cloud.bigtable.hbase.adapters.read.GetAdapter;
@@ -36,7 +31,6 @@ import com.google.protobuf.ByteString;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -76,7 +70,7 @@ public class TestGetAdapter {
     Get get = makeValidGet(dataHelper.randomData("rk1"));
     Query query = Query.create(TABLE_ID);
     getAdapter.adapt(get, throwingReadHooks, query);
-    
+
     ByteString adaptedRowKey = query.toProto(REQUEST_CONTEXT).getRows().getRowKeys(0);
     Assert.assertEquals(
         new String(get.getRow(), StandardCharsets.UTF_8),

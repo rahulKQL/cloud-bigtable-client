@@ -173,10 +173,10 @@ public class HBaseRequestAdapter {
    * @param get a {@link org.apache.hadoop.hbase.client.Get} object.
    * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
    */
+  // TODO: change this to adapt to {@link com.google.cloud.bigtable.data.v2.models.Query} model
   public ReadRowsRequest adapt(Get get) {
     ReadHooks<Query, Query> readHooks = new QueryReadHooks();
     Query query = Query.create(bigtableTableName.getTableId());
-    //TODO: change GET_ADAPTER to adapt to {@link com.google.cloud.bigtable.data.v2.models.Query} model
     Adapters.GET_ADAPTER.adapt(get, readHooks, query);
     return readHooks.applyPreSendHook(query).toProto(requestContext);
   }
@@ -187,10 +187,10 @@ public class HBaseRequestAdapter {
    * @param scan a {@link org.apache.hadoop.hbase.client.Scan} object.
    * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
    */
+  // TODO: change this to adapt to {@link com.google.cloud.bigtable.data.v2.models.Query} model
   public ReadRowsRequest adapt(Scan scan) {
     ReadHooks<Query, Query> readHooks = new QueryReadHooks();
     Query query = Query.create(bigtableTableName.getTableId());
-    //TODO: change SCAN_ADAPTER to adapt to {@link com.google.cloud.bigtable.data.v2.models.Query} model
     Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
     return readHooks.applyPreSendHook(query).toProto(requestContext);
   }

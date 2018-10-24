@@ -99,15 +99,15 @@ public class TemplateUtils {
           }
         }
         //TODO rahulkql: Changed RequestValueProvider constructor to avail necessary
-        // properties, for Query and RequestContext instantiation.
+        // properties for Query and RequestContext instantiation.
         Query query = Query.create(options.getBigtableTableId().get());
         ReadHooks<ReadRowsRequest, ReadRowsRequest> readHooks = new ReadRowsHooks();
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
         RequestContext reqContex = RequestContext.create(
-              InstanceName.of(options.getBigtableProject().get(), 
+              InstanceName.of(options.getBigtableProject().get(),
                     options.getBigtableInstanceId().get()),
               options.getBigtableAppProfileId().get());
-        
+
         cachedRequest = readHooks.applyPreSendHook(query.toProto(reqContex));
       }
       return cachedRequest;

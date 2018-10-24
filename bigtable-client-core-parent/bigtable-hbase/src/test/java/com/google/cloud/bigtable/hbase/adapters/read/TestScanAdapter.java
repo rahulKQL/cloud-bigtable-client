@@ -21,15 +21,11 @@ import static com.google.cloud.bigtable.hbase.BigtableTestConstacts.TABLE_ID;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 
-import com.google.bigtable.v2.ReadRowsRequest;
-import com.google.bigtable.v2.ReadRowsRequest.Builder;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
-import com.google.bigtable.v2.RowSetOrBuilder;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.hbase.BigtableExtendedScan;
-import com.google.cloud.bigtable.hbase.BigtableTestConstacts;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapterContext;
 import com.google.cloud.bigtable.hbase.util.ByteStringer;
@@ -175,7 +171,7 @@ public class TestScanAdapter {
         .withStopRow(stopKey);
     Query query = Query.create(TABLE_ID);
     scanAdapter.adapt(scan, throwingReadHooks, query);
-    Assert.assertEquals(toRowSet(toRange(startKey, stopKey)), 
+    Assert.assertEquals(toRowSet(toRange(startKey, stopKey)),
        query.toProto(REQUEST_CONTEXT).getRows());
   }
 
@@ -190,7 +186,7 @@ public class TestScanAdapter {
     scanAdapter.adapt(scan, throwingReadHooks, query);
     Assert.assertEquals(toRowSet(
         RowRange.newBuilder().setStartKeyOpen(ByteStringer.wrap(startKey))
-            .setEndKeyClosed(ByteStringer.wrap(stopKey)).build()), 
+            .setEndKeyClosed(ByteStringer.wrap(stopKey)).build()),
        query.toProto(REQUEST_CONTEXT).getRows());
   }
 
@@ -202,7 +198,7 @@ public class TestScanAdapter {
     scan.setRowPrefixFilter(prefix);
     Query query = Query.create(TABLE_ID);
     scanAdapter.adapt(scan, throwingReadHooks, query);
-    Assert.assertEquals(toRowSet(toRange(prefix, prefixEnd)), 
+    Assert.assertEquals(toRowSet(toRange(prefix, prefixEnd)),
         query.toProto(REQUEST_CONTEXT).getRows());
   }
 
@@ -233,17 +229,17 @@ public class TestScanAdapter {
     scan.addRowKey(row2);
     scan.addRange(startRow, stopRow);
     scan.addRangeWithPrefix(prefix);
-    
+
     Query query = Query.create(TABLE_ID);
     scanAdapter.adapt(scan, throwingReadHooks, query);
-    
+
     RowSet expected = RowSet.newBuilder()
         .addRowKeys(ByteStringer.wrap(row1))
         .addRowKeys(ByteStringer.wrap(row2))
         .addRowRanges(toRange(startRow, stopRow))
         .addRowRanges(toRange(prefix, prefixEnd))
         .build();
-    
+
     Assert.assertEquals(expected, query.toProto(REQUEST_CONTEXT).getRows());
   }
 
@@ -276,7 +272,7 @@ public class TestScanAdapter {
 
     Query query = Query.create(TABLE_ID);
     scanAdapter.adapt(scan, throwingReadHooks, query);
-    
+
     Assert.assertEquals(
         RowSet.newBuilder()
             .addRowRanges(

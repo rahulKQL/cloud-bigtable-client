@@ -139,10 +139,9 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
   @Override
   public void adapt(Scan scan, ReadHooks readHooks, Query query) {
     throwIfUnsupportedScan(scan);
-    
-    //TODO rahulkql:identify ByteStringRange directly from Scan
+
     rowSetToByteRange(toRowSet(scan), query);
-    
+
     query.filter(buildFilter(scan, readHooks));
 
     if (LIMIT_AVAILABLE && scan.getLimit() > 0) {
@@ -154,57 +153,17 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     RowSet rowSet = getRowSet(scan);
     return narrowRowSet(rowSet, scan.getFilter());
   }
-  
-  /*
-  private ByteStringRange toRange(Scan scan, Query query) {
-    ByteStringRange byteRange = ByteStringRange.unbounded();
-    if (scan instanceof BigtableExtendedScan) {
-      return ByteStringRange.create(ByteString.copyFrom(scan.getStartRow()), 
-                 ByteString.copyFrom(scan.getStopRow()));
-    } else {
-      ByteString startRow = ByteString.copyFrom(scan.getStartRow());
-      if (scan.isGetScan()) {
-        query.rowKey(startRow);
-      } else {
-        
-        if (!startRow.isEmpty()) {
-          if (!OPEN_CLOSED_AVAILABLE || scan.includeStartRow()) {
-            // the default for start is closed
-            byteRange.startClosed(startRow);
-          } else {
-            byteRange.startOpen(startRow);
-          }
-        }
-        
-        ByteString stopRow = ByteString.copyFrom(scan.getStopRow());
-        if (!stopRow.isEmpty()) {
-          if (!OPEN_CLOSED_AVAILABLE || !scan.includeStopRow()) {
-            // the default for stop is open
-            byteRange.endOpen(stopRow);
-          } else {
-            byteRange.endClosed(stopRow);
-          }
-        }
-      }
-    }
-    //narrowRowSet
-    return byteRange;
-  }
-  */
-  
-  /** 
+
+  /**
    * To covert {@link RowSet} into {@link ByteStringRange} which is accepted by Query.range().
-   * 
+   *
    * @param rowSet
    * @param query
    */
-  //TODO rahulkql: this would be removed once GCJ is implemented or
-  // these part is set directly in ByteStringRange
-  // scanRangeSet.removeAll(filterRangeSet.complement());
   private void rowSetToByteRange(RowSet rowSet, Query query) {
     for(RowRange rowRange : rowSet.getRowRangesList()) {
       ByteStringRange range  = ByteStringRange.unbounded();
-      
+
       switch(rowRange.getStartKeyCase()) {
         case START_KEY_OPEN:
           range.startOpen(rowRange.getStartKeyOpen());
@@ -219,7 +178,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
           throw new IllegalArgumentException("Unexpected start key case: " +
               rowRange.getStartKeyCase());
       }
-       
+
       switch(rowRange.getEndKeyCase()){
         case END_KEY_OPEN:
           range.endOpen(rowRange.getEndKeyOpen());
@@ -231,17 +190,17 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
           range.endOpen(ByteString.EMPTY);
           break;
         default:
-          throw new IllegalArgumentException("Unexpected end key case: " + 
+          throw new IllegalArgumentException("Unexpected end key case: " +
               rowRange.getEndKeyCase());
       }
       query.range(range);
     }
-    
+
     for(ByteString rowKey : rowSet.getRowKeysList()) {
       query.rowKey(rowKey);
     }
   }
-  
+
   private RowSet getRowSet(Scan scan) {
     if (scan instanceof BigtableExtendedScan) {
       return ((BigtableExtendedScan) scan).getRowSet();
@@ -297,6 +256,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     }
   }
 
+  // TODO: find way to narrow ByteStringRange directly
   private RowSet narrowRowSet(RowSet rowSet, org.apache.hadoop.hbase.filter.Filter filter) {
     if (filter == null) {
       return rowSet;
