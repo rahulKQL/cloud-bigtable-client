@@ -21,8 +21,8 @@ import com.google.common.base.Functions;
 
 /**
  * ReadRowsRequest implementation of {@link com.google.cloud.bigtable.hbase.adapters.read.ReadHooks}.
- * 
- * 
+ *
+ *
  * @author sduskis
  * @version $Id: $Id
  */

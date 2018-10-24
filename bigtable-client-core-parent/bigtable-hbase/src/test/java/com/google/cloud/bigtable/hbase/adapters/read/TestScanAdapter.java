@@ -19,11 +19,18 @@ import static com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 
+<<<<<<< HEAD
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.ReadRowsRequest.Builder;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.data.v2.models.Filters;
+=======
+import com.google.bigtable.v2.RowFilter;
+import com.google.bigtable.v2.RowRange;
+import com.google.bigtable.v2.RowSet;
+import com.google.cloud.bigtable.data.v2.models.Query;
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
 import com.google.cloud.bigtable.hbase.BigtableExtendedScan;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapterContext;
@@ -164,8 +171,15 @@ public class TestScanAdapter {
     Scan scan = new Scan()
         .withStartRow(startKey)
         .withStopRow(stopKey);
+<<<<<<< HEAD
     ReadRowsRequest.Builder request = scanAdapter.adapt(scan, throwingReadHooks);
     Assert.assertEquals(toRowSet(toRange(startKey, stopKey)), request.getRows());
+=======
+    Query query = Query.create(TABLE_ID);
+    scanAdapter.adapt(scan, throwingReadHooks, query);
+    Assert.assertEquals(toRowSet(toRange(startKey, stopKey)),
+       query.toProto(REQUEST_CONTEXT).getRows());
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
   }
 
   @Test
@@ -178,7 +192,12 @@ public class TestScanAdapter {
     ReadRowsRequest.Builder request = scanAdapter.adapt(scan, throwingReadHooks);
     Assert.assertEquals(toRowSet(
         RowRange.newBuilder().setStartKeyOpen(ByteStringer.wrap(startKey))
+<<<<<<< HEAD
             .setEndKeyClosed(ByteStringer.wrap(stopKey)).build()), request.getRows());
+=======
+            .setEndKeyClosed(ByteStringer.wrap(stopKey)).build()),
+       query.toProto(REQUEST_CONTEXT).getRows());
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
   }
 
   @Test
@@ -187,8 +206,15 @@ public class TestScanAdapter {
     byte[] prefixEnd = calculatePrefixEnd(prefix);
     Scan scan = new Scan();
     scan.setRowPrefixFilter(prefix);
+<<<<<<< HEAD
     ReadRowsRequest.Builder request = scanAdapter.adapt(scan, throwingReadHooks);
     Assert.assertEquals(toRowSet(toRange(prefix, prefixEnd)), request.getRows());
+=======
+    Query query = Query.create(TABLE_ID);
+    scanAdapter.adapt(scan, throwingReadHooks, query);
+    Assert.assertEquals(toRowSet(toRange(prefix, prefixEnd)),
+        query.toProto(REQUEST_CONTEXT).getRows());
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
   }
 
   @Test
@@ -218,6 +244,12 @@ public class TestScanAdapter {
     scan.addRange(startRow, stopRow);
     scan.addRangeWithPrefix(prefix);
 
+<<<<<<< HEAD
+=======
+    Query query = Query.create(TABLE_ID);
+    scanAdapter.adapt(scan, throwingReadHooks, query);
+
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
     RowSet expected = RowSet.newBuilder()
         .addRowKeys(ByteStringer.wrap(row1))
         .addRowKeys(ByteStringer.wrap(row2))
@@ -225,7 +257,11 @@ public class TestScanAdapter {
         .addRowRanges(toRange(prefix, prefixEnd))
         .build();
 
+<<<<<<< HEAD
     Assert.assertEquals(expected, scanAdapter.adapt(scan, throwingReadHooks).getRows());
+=======
+    Assert.assertEquals(expected, query.toProto(REQUEST_CONTEXT).getRows());
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
   }
 
   @Test
@@ -255,7 +291,12 @@ public class TestScanAdapter {
         .withStopRow("z".getBytes())
         .setFilter(fakeFilter);
 
+<<<<<<< HEAD
     Builder adapted = scanAdapter.adapt(scan, throwingReadHooks);
+=======
+    Query query = Query.create(TABLE_ID);
+    scanAdapter.adapt(scan, throwingReadHooks, query);
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
 
     Assert.assertEquals(
         RowSet.newBuilder()

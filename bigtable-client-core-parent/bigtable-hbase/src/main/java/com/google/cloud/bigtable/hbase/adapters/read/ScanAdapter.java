@@ -140,9 +140,15 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
   public ReadRowsRequest.Builder adapt(Scan scan, ReadHooks readHooks) {
     throwIfUnsupportedScan(scan);
 
+<<<<<<< HEAD
     ReadRowsRequest.Builder requestBuilder = ReadRowsRequest.newBuilder()
         .setRows(toRowSet(scan))
         .setFilter(buildFilter(scan, readHooks).toProto());
+=======
+    rowSetToByteRange(toRowSet(scan), query);
+
+    query.filter(buildFilter(scan, readHooks));
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
 
     if (LIMIT_AVAILABLE && scan.getLimit() > 0) {
       requestBuilder.setRowsLimit(scan.getLimit());
@@ -156,6 +162,56 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     return narrowRowSet(rowSet, scan.getFilter());
   }
 
+<<<<<<< HEAD
+=======
+  /**
+   * To covert {@link RowSet} into {@link ByteStringRange} which is accepted by Query.range().
+   *
+   * @param rowSet
+   * @param query
+   */
+  private void rowSetToByteRange(RowSet rowSet, Query query) {
+    for(RowRange rowRange : rowSet.getRowRangesList()) {
+      ByteStringRange range  = ByteStringRange.unbounded();
+
+      switch(rowRange.getStartKeyCase()) {
+        case START_KEY_OPEN:
+          range.startOpen(rowRange.getStartKeyOpen());
+          break;
+        case START_KEY_CLOSED:
+          range.startClosed(rowRange.getStartKeyClosed());
+          break;
+        case STARTKEY_NOT_SET:
+          range.startClosed(ByteString.EMPTY);
+          break;
+        default:
+          throw new IllegalArgumentException("Unexpected start key case: " +
+              rowRange.getStartKeyCase());
+      }
+
+      switch(rowRange.getEndKeyCase()){
+        case END_KEY_OPEN:
+          range.endOpen(rowRange.getEndKeyOpen());
+          break;
+        case END_KEY_CLOSED:
+          range.endClosed(rowRange.getEndKeyClosed());
+          break;
+        case ENDKEY_NOT_SET:
+          range.endOpen(ByteString.EMPTY);
+          break;
+        default:
+          throw new IllegalArgumentException("Unexpected end key case: " +
+              rowRange.getEndKeyCase());
+      }
+      query.range(range);
+    }
+
+    for(ByteString rowKey : rowSet.getRowKeysList()) {
+      query.rowKey(rowKey);
+    }
+  }
+
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
   private RowSet getRowSet(Scan scan) {
     if (scan instanceof BigtableExtendedScan) {
       return ((BigtableExtendedScan) scan).getRowSet();
@@ -211,7 +267,12 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     }
   }
 
+<<<<<<< HEAD
   private RowSet narrowRowSet(RowSet rowSet, Filter filter) {
+=======
+  // TODO: find way to narrow ByteStringRange directly
+  private RowSet narrowRowSet(RowSet rowSet, org.apache.hadoop.hbase.filter.Filter filter) {
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
     if (filter == null) {
       return rowSet;
     }

@@ -1909,9 +1909,7 @@ public abstract class AbstractTestFilters extends AbstractTest {
     }
   }
 
-  //TODO rahulkql: Will Fix this Hbase2 test case, currently giving ClassCastException @L1928
   @Test
-  @Ignore
   public void testPageFilters() throws IOException {
     byte[][] rowKeys = dataHelper.randomData("pageFilter-", 100);
     byte[] qualA = dataHelper.randomData("qualA");

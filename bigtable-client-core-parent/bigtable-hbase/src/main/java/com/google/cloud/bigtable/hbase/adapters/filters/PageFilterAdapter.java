@@ -16,7 +16,15 @@
 package com.google.cloud.bigtable.hbase.adapters.filters;
 
 import com.google.bigtable.v2.ReadRowsRequest;
+<<<<<<< HEAD
 import com.google.cloud.bigtable.data.v2.models.Filters.Filter;
+=======
+import com.google.bigtable.v2.RowFilter;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.hbase.adapters.read.QueryReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 
@@ -43,12 +51,24 @@ public class PageFilterAdapter extends TypedFilterAdapterBase<PageFilter> {
   @Override
   public Filter adapt(FilterAdapterContext context, PageFilter filter) throws IOException {
     final long pageSize = filter.getPageSize();
-    context.getReadHooks().composePreSendHook(new Function<ReadRowsRequest, ReadRowsRequest>() {
-      @Override
-      public ReadRowsRequest apply(ReadRowsRequest request) {
-        return request.toBuilder().setRowsLimit(pageSize).build();
-      }
-    });
+    ReadHooks readHooks = context.getReadHooks();
+
+    // TODO: This check to be removed once all ReadRowsRequest is migrated to Query
+    if(readHooks instanceof QueryReadHooks){
+      context.getReadHooks().composePreSendHook(new Function<Query, Query>(){
+        @Override
+        public Query apply(Query request) {
+          return request.limit(pageSize);
+        }
+      });
+    } else {
+      context.getReadHooks().composePreSendHook(new Function<ReadRowsRequest, ReadRowsRequest>() {
+        @Override
+        public ReadRowsRequest apply(ReadRowsRequest request) {
+          return request.toBuilder().setRowsLimit(pageSize).build();
+        }
+      });
+    }
     // This filter cannot be translated to a RowFilter, all logic is done as a read hook.
     return null;
   }

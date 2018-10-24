@@ -93,10 +93,24 @@ public class TemplateUtils {
             throw new RuntimeException(e);
           }
         }
+<<<<<<< HEAD
 
         ReadHooks readHooks = new DefaultReadHooks();
         ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
         cachedRequest = readHooks.applyPreSendHook(builder.build());
+=======
+        //TODO rahulkql: Changed RequestValueProvider constructor to avail necessary
+        // properties for Query and RequestContext instantiation.
+        Query query = Query.create(options.getBigtableTableId().get());
+        ReadHooks<ReadRowsRequest, ReadRowsRequest> readHooks = new ReadRowsHooks();
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+        RequestContext reqContex = RequestContext.create(
+              InstanceName.of(options.getBigtableProject().get(),
+                    options.getBigtableInstanceId().get()),
+              options.getBigtableAppProfileId().get());
+
+        cachedRequest = readHooks.applyPreSendHook(query.toProto(reqContex));
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
       }
       return cachedRequest;
     }

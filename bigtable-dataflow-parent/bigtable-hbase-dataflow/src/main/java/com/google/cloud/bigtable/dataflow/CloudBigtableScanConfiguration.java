@@ -204,7 +204,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
    * @param request The {@link ReadRowsRequest} that will be used to filter the table.
    * @param additionalConfiguration A {@link Map} with additional connection configuration.
    */
-  //TODO rahulkql:This also needs to be updated with Query 
+  //TODO rahulkql:This also needs to be updated with Query
   protected CloudBigtableScanConfiguration(String projectId, String instanceId, String tableId,
       ReadRowsRequest request, Map<String, String> additionalConfiguration) {
     super(projectId, instanceId,  tableId, additionalConfiguration);

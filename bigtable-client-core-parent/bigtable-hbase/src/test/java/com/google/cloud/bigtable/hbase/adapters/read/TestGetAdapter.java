@@ -17,8 +17,12 @@ package com.google.cloud.bigtable.hbase.adapters.read;
 
 import static com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
 
+<<<<<<< HEAD
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.data.v2.models.Filters;
+=======
+import com.google.cloud.bigtable.data.v2.models.Query;
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
 import com.google.cloud.bigtable.hbase.DataGenerationHelper;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
 import com.google.common.base.Function;
@@ -67,9 +71,17 @@ public class TestGetAdapter {
 
   @Test
   public void rowKeyIsSetInRequest() throws IOException {
+<<<<<<< HEAD
     Get get = makeValidGet(dataHelper.randomData(PREFIX_DATA));
     ReadRowsRequest.Builder rowRequestBuilder = getAdapter.adapt(get, throwingReadHooks);
     ByteString adaptedRowKey = rowRequestBuilder.getRows().getRowKeys(0);
+=======
+    Get get = makeValidGet(dataHelper.randomData("rk1"));
+    Query query = Query.create(TABLE_ID);
+    getAdapter.adapt(get, throwingReadHooks, query);
+
+    ByteString adaptedRowKey = query.toProto(REQUEST_CONTEXT).getRows().getRowKeys(0);
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
     Assert.assertEquals(
         new String(get.getRow(), StandardCharsets.UTF_8),
         adaptedRowKey.toStringUtf8());

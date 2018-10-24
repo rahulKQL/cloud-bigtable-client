@@ -285,7 +285,6 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         if (scan == null) {
           scan = new Scan();
         }
-        
         Query query = Query.create(tableId.get());
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
         query = readHooks.applyPreSendHook(query);
@@ -295,7 +294,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
           appProfileId = appProfileIdValue.get();
         }
         RequestContext reqContex = RequestContext.create(
-          InstanceName.of(projectId.get(), instanceId.get()), 
+          InstanceName.of(projectId.get(), instanceId.get()),
           appProfileId);
         request =  StaticValueProvider.of(query.toProto(reqContex));
       }

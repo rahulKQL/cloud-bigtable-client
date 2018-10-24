@@ -58,9 +58,15 @@ public class GetAdapter implements ReadOperationAdapter<Get> {
   public ReadRowsRequest.Builder adapt(Get operation, ReadHooks readHooks) {
     Scan operationAsScan = new Scan(addKeyOnlyFilter(operation));
     scanAdapter.throwIfUnsupportedScan(operationAsScan);
+<<<<<<< HEAD
     return ReadRowsRequest.newBuilder()
         .setFilter(scanAdapter.buildFilter(operationAsScan, readHooks).toProto())
         .setRows(RowSet.newBuilder().addRowKeys(ByteString.copyFrom(operation.getRow())));
+=======
+
+    query.rowKey(ByteString.copyFrom(operation.getRow()))
+          .filter(scanAdapter.buildFilter(operationAsScan, readHooks));
+>>>>>>> fix whitespace & comments  also fixed testPageFilter
   }
 
   private Get addKeyOnlyFilter(Get get) {
