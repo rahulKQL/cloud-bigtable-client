@@ -26,7 +26,6 @@ import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.config.RetryOptions;
-import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
@@ -527,7 +526,7 @@ public class BigtableSession implements Closeable {
     return builder
         .idleTimeout(Long.MAX_VALUE, TimeUnit.SECONDS)
         .maxInboundMessageSize(MAX_MESSAGE_SIZE)
-        .userAgent(BigtableVersionInfo.CORE_UESR_AGENT + "," + options.getUserAgent())
+        .userAgent(BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent())
         .intercept(interceptors)
         .build();
   }
