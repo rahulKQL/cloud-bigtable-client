@@ -17,8 +17,11 @@ package com.google.cloud.bigtable.hbase.adapters.filters;
 
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.RowFilter;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.hbase.BigtableTestConstacts;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapterContext.ContextCloseable;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
+import com.google.cloud.bigtable.hbase.adapters.read.QueryReadHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 
 import org.apache.hadoop.hbase.client.Scan;
@@ -33,6 +36,9 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import static com.google.cloud.bigtable.hbase.BigtableTestConstacts.REQUEST_CONTEXT;
+import static com.google.cloud.bigtable.hbase.BigtableTestConstacts.TABLE_ID;
 
 import java.io.IOException;
 
@@ -109,15 +115,15 @@ public class TestPageFilterAdapter {
   }
 
   @Test
-  public void pageFilterIsAppliedToReadRowsRequest() throws IOException {
-    ReadHooks<ReadRowsRequest, ReadRowsRequest> hooks = new ReadRowsHooks();
+  public void pageFilterIsAppliedToQuery() throws IOException {
+    ReadHooks<Query, Query> hooks = new QueryReadHooks();
     FilterAdapterContext context = new FilterAdapterContext(new Scan(), hooks);
     PageFilter pageFilter = new PageFilter(20);
     RowFilter adaptedFilter = pageFilterAdapter.adapt(context, pageFilter);
     Assert.assertNull("PageFilterAdapter should not return a RowFilter.", adaptedFilter);
 
-    ReadRowsRequest request = ReadRowsRequest.newBuilder().setRowsLimit(100).build();
-    ReadRowsRequest postHookRequest = hooks.applyPreSendHook(request);
-    Assert.assertEquals(20, postHookRequest.getRowsLimit());
+    Query request = Query.create(TABLE_ID).limit(100);
+    Query postHookRequest = hooks.applyPreSendHook(request);
+    Assert.assertEquals(20, postHookRequest.toProto(REQUEST_CONTEXT).getRowsLimit());
   }
 }
