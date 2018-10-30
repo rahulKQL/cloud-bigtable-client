@@ -51,24 +51,12 @@ public class PageFilterAdapter extends TypedFilterAdapterBase<PageFilter> {
   @Override
   public Filter adapt(FilterAdapterContext context, PageFilter filter) throws IOException {
     final long pageSize = filter.getPageSize();
-    ReadHooks readHooks = context.getReadHooks();
-
-    // TODO: This check to be removed once all ReadRowsRequest is migrated to Query
-    if(readHooks instanceof QueryReadHooks){
-      context.getReadHooks().composePreSendHook(new Function<Query, Query>(){
-        @Override
-        public Query apply(Query request) {
-          return request.limit(pageSize);
-        }
-      });
-    } else {
-      context.getReadHooks().composePreSendHook(new Function<ReadRowsRequest, ReadRowsRequest>() {
-        @Override
-        public ReadRowsRequest apply(ReadRowsRequest request) {
-          return request.toBuilder().setRowsLimit(pageSize).build();
-        }
-      });
-    }
+    context.getReadHooks().composePreSendHook(new Function<Query, Query>() {
+      @Override
+      public Query apply(Query request) {
+        return request.limit(pageSize);
+      }
+    });
     // This filter cannot be translated to a RowFilter, all logic is done as a read hook.
     return null;
   }
