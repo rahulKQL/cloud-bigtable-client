@@ -1,27 +1,24 @@
 package com.google.cloud.bigtable.hbase;
 
-import static com.google.cloud.bigtable.hbase.TestBigtableOptionsFactory.TEST_HOST;
 import static com.google.cloud.bigtable.hbase.TestBigtableOptionsFactory.TEST_INSTANCE_ID;
 import static com.google.cloud.bigtable.hbase.TestBigtableOptionsFactory.TEST_PROJECT_ID;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.google.api.gax.core.CredentialsProvider;
-import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
-import com.google.cloud.bigtable.data.v2.models.InstanceName;
 
 public class TestBigtableDataSettingsFactory {
+
+  private static final String TEST_USER_AGENT = "sampleUserAgent";
 
   @Rule
   public ExpectedException expect = ExpectedException.none();
@@ -44,9 +41,9 @@ public class TestBigtableDataSettingsFactory {
 
   @Test
   public void testWithOnlyProjectIdAndInstanceId() throws IOException, GeneralSecurityException {
-    BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
-        .setInstanceId(TEST_INSTANCE_ID)
-        .build();
+    BigtableOptions options = BigtableOptions.builder()
+        .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+        .setUserAgent(TEST_USER_AGENT).build();
     BigtableDataSettings settings = BigtableDataSettingsFactory.fromBigtableOptions(options);
     Assert.assertNotNull(settings);
   }
@@ -54,19 +51,12 @@ public class TestBigtableDataSettingsFactory {
   @Test
   public void testWithNullCredentials() throws IOException, GeneralSecurityException {
     BigtableOptions options =
-        BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
-            .setCredentialOptions(CredentialOptions.nullCredential()).build();
+        BigtableOptions.builder()
+            .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+            .setCredentialOptions(CredentialOptions.nullCredential())
+            .setUserAgent(TEST_USER_AGENT).build();
     BigtableDataSettings settings = BigtableDataSettingsFactory.fromBigtableOptions(options);
     Assert.assertNotNull(settings.getCredentialsProvider());
   }
 
-
-  public static void main(String[] args) throws IOException, GeneralSecurityException {
-    BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
-        .setInstanceId(TEST_INSTANCE_ID).setCredentialOptions(CredentialOptions.nullCredential())
-        .build();
-    BigtableDataSettings settings = BigtableDataSettingsFactory.fromBigtableOptions(options);
-
-    System.out.println(settings);
-  }
 }
