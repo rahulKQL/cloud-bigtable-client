@@ -21,7 +21,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.threeten.bp.Duration;
@@ -35,7 +34,6 @@ import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
-import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialFactory;
@@ -46,7 +44,6 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.stub.BigtableStubSettings;
-import com.google.common.collect.ImmutableSet;
 
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.internal.GrpcUtil;
@@ -59,13 +56,6 @@ public class BigtableDataSettingsFactory {
   /** Constant <code>LOG</code> */
   private static final Logger LOG = new Logger(BigtableDataSettingsFactory.class);
 
-  // NOTE: Included Code.UNAUTHENTICATED for default retryCodes
-  private static final Set<Code> DEFAULT_RETRY_CODES =
-      ImmutableSet.of(Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE, Code.ABORTED, Code.UNAUTHENTICATED);
-
-  // NOTE: set rpcTimeout 100ms, without retries.
-  private static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofMillis(100);
-
   /**
    * To create an instance of {@link BigtableDataSettings} from {@link BigtableOptions}.
    *
@@ -75,6 +65,11 @@ public class BigtableDataSettingsFactory {
    */
   public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options)
       throws IOException, GeneralSecurityException {
+    if (!options.getRetryOptions().enableRetries()) {
+      throw new IllegalStateException(
+          "Retry is must for BigtableDataSettings configuration from BigtableOptions.");
+    }
+
     BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
 
     InstanceName instanceName = InstanceName.newBuilder().setProject(options.getProjectId())
@@ -90,9 +85,9 @@ public class BigtableDataSettingsFactory {
 
     buildBulkOptions(builder, options);
 
-    buildCheckAndMutateRow(builder, options);
+    buildCheckAndMutateRow(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
 
-    buildReadModifyWrite(builder, options);
+    buildReadModifyWrite(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
 
     buildReadRows(builder, options);
 
@@ -129,18 +124,19 @@ public class BigtableDataSettingsFactory {
     BulkOptions bulkOptions = options.getBulkOptions();
     BatchingSettings.Builder batchSettingsBuilder = BatchingSettings.newBuilder();
 
-    // NOTE: FlowControlSettings by default uses LimitExceededBehavior.Block
     FlowControlSettings.Builder flowControlBuilder =
         FlowControlSettings.newBuilder()
             .setMaxOutstandingRequestBytes(bulkOptions.getMaxMemory());
 
     long autoFlushMs = bulkOptions.getAutoflushMs();
+    long bulkMaxRowKeyCount = bulkOptions.getBulkMaxRowKeyCount();
+    long maxInflightRpcs = bulkOptions.getMaxInflightRpcs();
+
     if (autoFlushMs > 0) {
       batchSettingsBuilder.setDelayThreshold(Duration.ofMillis(autoFlushMs));
     }
-    long maxIn = bulkOptions.getMaxInflightRpcs();
-    if(maxIn > 0) {
-      flowControlBuilder.setMaxOutstandingElementCount(maxIn);
+    if (maxInflightRpcs > 0) {
+      flowControlBuilder.setMaxOutstandingElementCount(maxInflightRpcs * bulkMaxRowKeyCount);
     }
 
     batchSettingsBuilder
@@ -150,16 +146,8 @@ public class BigtableDataSettingsFactory {
         .setFlowControlSettings(flowControlBuilder.build());
 
     // TODO: implement bulkMutationThrottling & bulkMutationRpcTargetMs, once available
-    if (options.getRetryOptions().enableRetries()) {
-      builder.bulkMutationsSettings()
-          .setBatchingSettings(batchSettingsBuilder.build())
-          .setRetryableCodes(DEFAULT_RETRY_CODES)
-          .setRetrySettings(defaultRetrySettings(options));
-    } else {
-      builder.bulkMutationsSettings()
-          .setSimpleTimeoutNoRetries(DEFAULT_RPC_TIMEOUT)
-          .getRetryableCodes().clear();
-    }
+    builder.bulkMutationsSettings().setSimpleTimeoutNoRetries(
+        ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()));
   }
 
   /**
@@ -169,15 +157,8 @@ public class BigtableDataSettingsFactory {
    * @param bulkMutation a {@link BulkOptions} object.
    */
   private static void buildSampleRowKeys(Builder builder, BigtableOptions options) {
-    if (options.getRetryOptions().enableRetries()) {
-      builder.sampleRowKeysSettings()
-          .setRetryableCodes(DEFAULT_RETRY_CODES)
-          .setRetrySettings(defaultRetrySettings(options));
-    } else {
-      builder.sampleRowKeysSettings()
-          .setSimpleTimeoutNoRetries(DEFAULT_RPC_TIMEOUT)
-          .getRetryableCodes().clear();
-    }
+    builder.sampleRowKeysSettings()
+        .setRetrySettings(defaultRetrySettings(options));
   }
 
   /**
@@ -187,15 +168,8 @@ public class BigtableDataSettingsFactory {
    * @param bulkMutation a {@link BulkOptions} object.
    */
   private static void buildMutateRow(Builder builder, BigtableOptions options) {
-    if (options.getRetryOptions().enableRetries()) {
-      builder.mutateRowSettings()
-          .setRetryableCodes(DEFAULT_RETRY_CODES)
-          .setRetrySettings(defaultRetrySettings(options));
-    } else {
-      builder.sampleRowKeysSettings()
-          .setSimpleTimeoutNoRetries(DEFAULT_RPC_TIMEOUT)
-          .getRetryableCodes().clear();
-    }
+    builder.mutateRowSettings()
+        .setRetrySettings(defaultRetrySettings(options));
   }
 
   /**
@@ -206,17 +180,8 @@ public class BigtableDataSettingsFactory {
    */
   private static void buildReadRows(Builder builder, BigtableOptions options) {
     // TODO: set readPartialRowTimeout for watchdog timer, taken BigtableSession#setupWatchdog()
-    if(options.getRetryOptions().enableRetries()) {
-      builder.readRowsSettings()
-          .setIdleTimeout(ofMillis(options.getRetryOptions().getReadPartialRowTimeoutMillis()))
-          .setRetryableCodes(DEFAULT_RETRY_CODES)
-          .setRetrySettings(defaultRetrySettings(options));
-    } else {
-      builder.readRowsSettings()
-          .setIdleTimeout(ofMillis(options.getRetryOptions().getReadPartialRowTimeoutMillis()))
-          .setSimpleTimeoutNoRetries(DEFAULT_RPC_TIMEOUT)
-          .getRetryableCodes().clear();
-    }
+    builder.readRowsSettings()
+        .setRetrySettings(defaultRetrySettings(options));
   }
 
   /**
@@ -225,10 +190,9 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildReadModifyWrite(Builder builder, BigtableOptions options) {
+  private static void buildReadModifyWrite(Builder builder, long rpcTimeoutMs) {
     builder.readModifyWriteRowSettings()
-        .setSimpleTimeoutNoRetries(DEFAULT_RPC_TIMEOUT)
-        .getRetryableCodes().clear();
+        .setSimpleTimeoutNoRetries(ofMillis(rpcTimeoutMs));
   }
 
   /**
@@ -237,10 +201,9 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildCheckAndMutateRow(Builder builder, BigtableOptions options) {
+  private static void buildCheckAndMutateRow(Builder builder, long rpcTimeoutMs) {
     builder.checkAndMutateRowSettings()
-        .setSimpleTimeoutNoRetries(DEFAULT_RPC_TIMEOUT)
-        .getRetryableCodes().clear();
+        .setSimpleTimeoutNoRetries(ofMillis(rpcTimeoutMs));
   }
 
   /**
@@ -251,20 +214,12 @@ public class BigtableDataSettingsFactory {
    */
   private static RetrySettings defaultRetrySettings(BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
-    if (!retryOptions.enableRetries()) {
-      // TODO: limiting the retries by adding this makes sense?
-      return RetrySettings.newBuilder()
-          .setMaxAttempts(1).build();
-    }
 
-    // TODO: Make sure other default values are compatible with these configuration.
     RetrySettings.Builder retryBuilder = RetrySettings.newBuilder()
         .setInitialRetryDelay(ofMillis(retryOptions.getInitialBackoffMillis()))
         .setRetryDelayMultiplier(retryOptions.getBackoffMultiplier())
-        .setMaxRetryDelay(ofMillis(retryOptions.getMaxElapsedBackoffMillis()));
-
-    // TODO: verify if maxScanTimeout would cover for maxAttempts or not.
-    retryBuilder.setMaxAttempts(retryOptions.getMaxScanTimeoutRetries());
+        .setMaxRetryDelay(ofMillis(retryOptions.getMaxElapsedBackoffMillis()))
+        .setMaxAttempts(retryOptions.getMaxScanTimeoutRetries());
 
     // configurations for RPC timeouts
     retryBuilder
