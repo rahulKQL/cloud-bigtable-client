@@ -20,6 +20,7 @@ import static org.threeten.bp.Duration.ofMillis;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.channels.UnsupportedAddressTypeException;
 import java.security.GeneralSecurityException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -67,9 +68,11 @@ public class BigtableDataSettingsFactory {
       throws IOException, GeneralSecurityException {
     if (!options.getRetryOptions().enableRetries()) {
       throw new IllegalStateException(
-          "Retry is must for BigtableDataSettings configuration from BigtableOptions.");
+          "Disabling retries is not currently supported.");
     }
-
+    if(options.getRetryOptions().allowRetriesWithoutTimestamp()) {
+      throw new UnsupportedOperationException("Please use unsafe Mutation method");
+    }
     BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
 
     InstanceName instanceName = InstanceName.newBuilder().setProject(options.getProjectId())
@@ -77,13 +80,11 @@ public class BigtableDataSettingsFactory {
     builder.setInstanceName(instanceName);
     builder.setAppProfileId(options.getAppProfileId());
 
-    LOG.debug("endpoint host %s.", options.getDataHost());
-    LOG.debug("endpoint host %s.", options.getPort());
     builder.setEndpoint(options.getDataHost() + ":" + options.getPort());
 
     buildCredentialProvider(builder, options.getCredentialOptions());
 
-    buildBulkOptions(builder, options);
+    buildBulkMutations(builder, options);
 
     buildCheckAndMutateRow(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
 
@@ -95,19 +96,15 @@ public class BigtableDataSettingsFactory {
 
     buildSampleRowKeys(builder, options);
 
-    // TODO: would it map to GrpcHeaderInterceptor? or we should build userAgent
-    // using ManagedChannelBuilder AND
-    builder.setHeaderProvider(
-      FixedHeaderProvider.create(GrpcUtil.USER_AGENT_KEY.name(), options.getUserAgent()));
-
     // TODO: implementation for channelCount or channelPerCPU
     ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
-        .forAddress(options.getDataHost(), options.getPort())//
+        .forAddress(options.getDataHost(), options.getPort())
         .userAgent(options.getUserAgent());
 
     if (options.usePlaintextNegotiation()) {
       channelBuilder.usePlaintext();
     }
+
     builder.setTransportChannelProvider(
       FixedTransportChannelProvider.create(GrpcTransportChannel.create(channelBuilder.build())));
 
@@ -120,13 +117,9 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param options a {@link BigtableOptions} object.
    */
-  private static void buildBulkOptions(Builder builder, BigtableOptions options) {
+  private static void buildBulkMutations(Builder builder, BigtableOptions options) {
     BulkOptions bulkOptions = options.getBulkOptions();
     BatchingSettings.Builder batchSettingsBuilder = BatchingSettings.newBuilder();
-
-    FlowControlSettings.Builder flowControlBuilder =
-        FlowControlSettings.newBuilder()
-            .setMaxOutstandingRequestBytes(bulkOptions.getMaxMemory());
 
     long autoFlushMs = bulkOptions.getAutoflushMs();
     long bulkMaxRowKeyCount = bulkOptions.getBulkMaxRowKeyCount();
@@ -135,8 +128,11 @@ public class BigtableDataSettingsFactory {
     if (autoFlushMs > 0) {
       batchSettingsBuilder.setDelayThreshold(Duration.ofMillis(autoFlushMs));
     }
+    FlowControlSettings.Builder flowControlBuilder = FlowControlSettings.newBuilder();
     if (maxInflightRpcs > 0) {
-      flowControlBuilder.setMaxOutstandingElementCount(maxInflightRpcs * bulkMaxRowKeyCount);
+      flowControlBuilder
+        .setMaxOutstandingRequestBytes(bulkOptions.getMaxMemory())
+        .setMaxOutstandingElementCount(maxInflightRpcs * bulkMaxRowKeyCount);
     }
 
     batchSettingsBuilder
@@ -158,7 +154,7 @@ public class BigtableDataSettingsFactory {
    */
   private static void buildSampleRowKeys(Builder builder, BigtableOptions options) {
     builder.sampleRowKeysSettings()
-        .setRetrySettings(defaultRetrySettings(options));
+        .setRetrySettings(buildIdempotentRetrySettings(options));
   }
 
   /**
@@ -169,7 +165,7 @@ public class BigtableDataSettingsFactory {
    */
   private static void buildMutateRow(Builder builder, BigtableOptions options) {
     builder.mutateRowSettings()
-        .setRetrySettings(defaultRetrySettings(options));
+        .setRetrySettings(buildIdempotentRetrySettings(options));
   }
 
   /**
@@ -179,9 +175,23 @@ public class BigtableDataSettingsFactory {
    * @param bulkMutation a {@link BulkOptions} object.
    */
   private static void buildReadRows(Builder builder, BigtableOptions options) {
-    // TODO: set readPartialRowTimeout for watchdog timer, taken BigtableSession#setupWatchdog()
+    RetryOptions retryOptions = options.getRetryOptions();
+
+    RetrySettings.Builder retryBuilder = RetrySettings.newBuilder()
+        .setInitialRetryDelay(ofMillis(retryOptions.getInitialBackoffMillis()))
+        .setRetryDelayMultiplier(retryOptions.getBackoffMultiplier())
+        .setMaxRetryDelay(ofMillis(retryOptions.getMaxElapsedBackoffMillis()))
+        .setMaxAttempts(retryOptions.getMaxScanTimeoutRetries());
+
+    // configurations for RPC timeouts
+    Duration readPartialRowTimeout = ofMillis(retryOptions.getReadPartialRowTimeoutMillis());
+    retryBuilder
+        .setInitialRpcTimeout(readPartialRowTimeout)
+        .setMaxRpcTimeout(readPartialRowTimeout)
+        .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
+
     builder.readRowsSettings()
-        .setRetrySettings(defaultRetrySettings(options));
+        .setRetrySettings(retryBuilder.build());
   }
 
   /**
@@ -212,7 +222,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static RetrySettings defaultRetrySettings(BigtableOptions options) {
+  private static RetrySettings buildIdempotentRetrySettings(BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
 
     RetrySettings.Builder retryBuilder = RetrySettings.newBuilder()
@@ -222,12 +232,12 @@ public class BigtableDataSettingsFactory {
         .setMaxAttempts(retryOptions.getMaxScanTimeoutRetries());
 
     // configurations for RPC timeouts
+    Duration shortRpcTimeout = ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs());
     retryBuilder
-        .setInitialRpcTimeout(ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()))
-        .setMaxRpcTimeout(ofMillis(retryOptions.getReadPartialRowTimeoutMillis()))
+        .setInitialRpcTimeout(shortRpcTimeout)
+        .setMaxRpcTimeout(shortRpcTimeout)
         .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
 
-    // TODO: an option to set RetryOptions#allowRetriesWithoutTimestamp
     return retryBuilder.build();
   }
 
