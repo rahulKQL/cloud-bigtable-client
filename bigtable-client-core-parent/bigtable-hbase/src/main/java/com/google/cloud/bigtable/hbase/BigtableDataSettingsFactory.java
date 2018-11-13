@@ -20,7 +20,6 @@ import static org.threeten.bp.Duration.ofMillis;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.channels.UnsupportedAddressTypeException;
 import java.security.GeneralSecurityException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -33,7 +32,6 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.retrying.RetrySettings;
-import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
@@ -47,7 +45,6 @@ import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.stub.BigtableStubSettings;
 
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.internal.GrpcUtil;
 
 /**
  * Static methods to convert an instance of {@link Configuration} or {@link BigtableOptions} to a
@@ -70,9 +67,7 @@ public class BigtableDataSettingsFactory {
       throw new IllegalStateException(
           "Disabling retries is not currently supported.");
     }
-    if(options.getRetryOptions().allowRetriesWithoutTimestamp()) {
-      throw new UnsupportedOperationException("Please use unsafe Mutation method");
-    }
+    
     BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
 
     InstanceName instanceName = InstanceName.newBuilder().setProject(options.getProjectId())
@@ -82,19 +77,19 @@ public class BigtableDataSettingsFactory {
 
     builder.setEndpoint(options.getDataHost() + ":" + options.getPort());
 
-    buildCredentialProvider(builder, options.getCredentialOptions());
+    buildCredentialProviderSettings(builder, options.getCredentialOptions());
 
-    buildBulkMutations(builder, options);
+    buildBulkMutationsSettings(builder, options);
 
-    buildCheckAndMutateRow(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
+    buildCheckAndMutateRowSettings(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
 
-    buildReadModifyWrite(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
+    buildReadModifyWriteSettings(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
 
-    buildReadRows(builder, options);
+    buildReadRowsSettings(builder, options);
 
-    buildMutateRow(builder, options);
+    buildMutateRowSettings(builder, options);
 
-    buildSampleRowKeys(builder, options);
+    buildSampleRowKeysSettings(builder, options);
 
     // TODO: implementation for channelCount or channelPerCPU
     ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
@@ -117,7 +112,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param options a {@link BigtableOptions} object.
    */
-  private static void buildBulkMutations(Builder builder, BigtableOptions options) {
+  private static void buildBulkMutationsSettings(Builder builder, BigtableOptions options) {
     BulkOptions bulkOptions = options.getBulkOptions();
     BatchingSettings.Builder batchSettingsBuilder = BatchingSettings.newBuilder();
 
@@ -152,7 +147,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildSampleRowKeys(Builder builder, BigtableOptions options) {
+  private static void buildSampleRowKeysSettings(Builder builder, BigtableOptions options) {
     builder.sampleRowKeysSettings()
         .setRetrySettings(buildIdempotentRetrySettings(options));
   }
@@ -163,7 +158,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildMutateRow(Builder builder, BigtableOptions options) {
+  private static void buildMutateRowSettings(Builder builder, BigtableOptions options) {
     builder.mutateRowSettings()
         .setRetrySettings(buildIdempotentRetrySettings(options));
   }
@@ -174,7 +169,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildReadRows(Builder builder, BigtableOptions options) {
+  private static void buildReadRowsSettings(Builder builder, BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
 
     RetrySettings.Builder retryBuilder = RetrySettings.newBuilder()
@@ -200,7 +195,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildReadModifyWrite(Builder builder, long rpcTimeoutMs) {
+  private static void buildReadModifyWriteSettings(Builder builder, long rpcTimeoutMs) {
     builder.readModifyWriteRowSettings()
         .setSimpleTimeoutNoRetries(ofMillis(rpcTimeoutMs));
   }
@@ -211,7 +206,7 @@ public class BigtableDataSettingsFactory {
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param bulkMutation a {@link BulkOptions} object.
    */
-  private static void buildCheckAndMutateRow(Builder builder, long rpcTimeoutMs) {
+  private static void buildCheckAndMutateRowSettings(Builder builder, long rpcTimeoutMs) {
     builder.checkAndMutateRowSettings()
         .setSimpleTimeoutNoRetries(ofMillis(rpcTimeoutMs));
   }
@@ -237,7 +232,11 @@ public class BigtableDataSettingsFactory {
         .setInitialRpcTimeout(shortRpcTimeout)
         .setMaxRpcTimeout(shortRpcTimeout)
         .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
-
+    
+    if (retryOptions.allowRetriesWithoutTimestamp()) {
+      throw new UnsupportedOperationException(
+          "Please use com.google.cloud.bigtable.data.v2.models.Mutation#createUnsafe() for retries without Timestamp");
+    }
     return retryBuilder.build();
   }
 
@@ -249,7 +248,7 @@ public class BigtableDataSettingsFactory {
    * @throws FileNotFoundException
    * @throws IOException
    */
-  private static void buildCredentialProvider(Builder builder, CredentialOptions credentialOptions)
+  private static void buildCredentialProviderSettings(Builder builder, CredentialOptions credentialOptions)
       throws FileNotFoundException, IOException {
     CredentialsProvider credentialsProvider = NoCredentialsProvider.create();
 

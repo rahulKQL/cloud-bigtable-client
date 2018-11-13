@@ -58,11 +58,14 @@ public class TestBigtableDataSettingsFactory {
     BigtableDataSettingsFactory.fromBigtableOptions(options);
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test
   public void testWithoutUserAgent() throws IOException, GeneralSecurityException {
     BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
         .setInstanceId(TEST_INSTANCE_ID).build();
-    BigtableDataSettingsFactory.fromBigtableOptions(options);
+    BigtableDataSettings dataSettings = BigtableDataSettingsFactory.fromBigtableOptions(options);
+    // TODO: Need to assert UserAgent to null & add more test cases
+    Assert.assertEquals(TEST_PROJECT_ID, dataSettings.getInstanceName().getProject());
+    Assert.assertEquals(TEST_INSTANCE_ID, dataSettings.getInstanceName().getInstance());
   }
 
   @Test
