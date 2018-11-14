@@ -24,10 +24,8 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Mutation;
 import org.threeten.bp.Duration;
 
-import com.google.api.client.util.Preconditions;
 import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.CredentialsProvider;
@@ -234,7 +232,8 @@ public class BigtableDataSettingsFactory {
         .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
     
     if (retryOptions.allowRetriesWithoutTimestamp()) {
-      LOG.warn("Retries without Timestamp doesn't support, please use Mutation#createUnsafe");
+      //TODO: add instruction to create unsafeMutation.
+      LOG.warn("Retries without Timestamp doesn't support");
     }
     return retryBuilder.build();
   }
