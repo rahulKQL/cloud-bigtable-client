@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import static com.google.api.client.util.Preconditions.checkState;
 import static org.threeten.bp.Duration.ofMillis;
 
 import java.io.FileInputStream;
@@ -23,8 +24,10 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Mutation;
 import org.threeten.bp.Duration;
 
+import com.google.api.client.util.Preconditions;
 import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.CredentialsProvider;
@@ -63,10 +66,7 @@ public class BigtableDataSettingsFactory {
    */
   public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options)
       throws IOException, GeneralSecurityException {
-    if (!options.getRetryOptions().enableRetries()) {
-      throw new IllegalStateException(
-          "Disabling retries is not currently supported.");
-    }
+    checkState(!options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
     
     BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
 
@@ -234,8 +234,7 @@ public class BigtableDataSettingsFactory {
         .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
     
     if (retryOptions.allowRetriesWithoutTimestamp()) {
-      throw new UnsupportedOperationException(
-          "Please use com.google.cloud.bigtable.data.v2.models.Mutation#createUnsafe() for retries without Timestamp");
+      LOG.warn("Retries without Timestamp doesn't support, please use Mutation#createUnsafe");
     }
     return retryBuilder.build();
   }
