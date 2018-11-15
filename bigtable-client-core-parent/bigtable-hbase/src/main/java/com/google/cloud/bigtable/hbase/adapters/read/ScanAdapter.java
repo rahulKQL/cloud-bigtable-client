@@ -17,10 +17,15 @@ package com.google.cloud.bigtable.hbase.adapters.read;
 
 import static com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
 
+<<<<<<< HEAD
 import com.google.common.collect.Range;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
+=======
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+>>>>>>> adding RangeSet method ScanAdapter
 import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.Filters.ChainFilter;
 import com.google.cloud.bigtable.data.v2.models.Filters.InterleaveFilter;
@@ -32,6 +37,10 @@ import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapterContext;
 import com.google.cloud.bigtable.util.RowKeyWrapper;
 import com.google.common.base.Optional;
 import com.google.common.collect.RangeSet;
+<<<<<<< HEAD
+=======
+import com.google.common.collect.TreeRangeSet;
+>>>>>>> adding RangeSet method ScanAdapter
 import com.google.protobuf.ByteString;
 
 import org.apache.hadoop.hbase.client.Scan;
@@ -141,12 +150,16 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     throwIfUnsupportedScan(scan);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     ReadRowsRequest.Builder requestBuilder = ReadRowsRequest.newBuilder()
         .setRows(toRowSet(scan))
         .setFilter(buildFilter(scan, readHooks).toProto());
 =======
     rowSetToByteRange(toRowSet(scan), query);
 
+=======
+    toByteStringRange(scan, query);
+>>>>>>> adding RangeSet method ScanAdapter
     query.filter(buildFilter(scan, readHooks));
 >>>>>>> fix whitespace & comments  also fixed testPageFilter
 
@@ -157,11 +170,10 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     return requestBuilder;
   }
 
-  private RowSet toRowSet(Scan scan) {
-    RowSet rowSet = getRowSet(scan);
-    return narrowRowSet(rowSet, scan.getFilter());
-  }
+  private void toByteStringRange(Scan scan, Query query) {
+    RangeSet<RowKeyWrapper> rangeSet = getRangeSet(scan);
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
   /**
@@ -188,61 +200,90 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
           throw new IllegalArgumentException("Unexpected start key case: " +
               rowRange.getStartKeyCase());
       }
+=======
+    for (Range<RowKeyWrapper> guavaRange : rangeSet.asRanges()) {
+      if (guavaRange.hasLowerBound() && guavaRange.lowerBoundType() == BoundType.CLOSED
+          && guavaRange.hasUpperBound() && guavaRange.upperBoundType() == BoundType.CLOSED
+          && guavaRange.lowerEndpoint().equals(guavaRange.upperEndpoint())) {
+>>>>>>> adding RangeSet method ScanAdapter
 
-      switch(rowRange.getEndKeyCase()){
-        case END_KEY_OPEN:
-          range.endOpen(rowRange.getEndKeyOpen());
-          break;
-        case END_KEY_CLOSED:
-          range.endClosed(rowRange.getEndKeyClosed());
-          break;
-        case ENDKEY_NOT_SET:
-          range.endOpen(ByteString.EMPTY);
-          break;
-        default:
-          throw new IllegalArgumentException("Unexpected end key case: " +
-              rowRange.getEndKeyCase());
+        query.rowKey(guavaRange.lowerEndpoint().getKey());
+      } else {
+        ByteStringRange byteRange = ByteStringRange.unbounded();
+
+        if (guavaRange.hasLowerBound()) {
+          switch (guavaRange.lowerBoundType()) {
+          case CLOSED:
+            byteRange.startClosed(guavaRange.lowerEndpoint().getKey());
+            break;
+          case OPEN:
+            byteRange.startOpen(guavaRange.lowerEndpoint().getKey());
+            break;
+          default:
+            throw new IllegalArgumentException(
+                "Unexpected lower bound type: " + guavaRange.lowerBoundType());
+          }
+        }
+
+        // handle end key
+        if (guavaRange.hasUpperBound()) {
+          switch (guavaRange.upperBoundType()) {
+          case CLOSED:
+            byteRange.endClosed(guavaRange.upperEndpoint().getKey());
+            break;
+          case OPEN:
+            byteRange.endOpen(guavaRange.upperEndpoint().getKey());
+            break;
+          default:
+            throw new IllegalArgumentException(
+                "Unexpected upper bound type: " + guavaRange.upperBoundType());
+          }
+        }
+        query.range(byteRange);
       }
-      query.range(range);
-    }
-
-    for(ByteString rowKey : rowSet.getRowKeysList()) {
-      query.rowKey(rowKey);
     }
   }
 
+<<<<<<< HEAD
 >>>>>>> fix whitespace & comments  also fixed testPageFilter
   private RowSet getRowSet(Scan scan) {
+=======
+  private RangeSet<RowKeyWrapper> getRangeSet(Scan scan) {
+>>>>>>> adding RangeSet method ScanAdapter
     if (scan instanceof BigtableExtendedScan) {
-      return ((BigtableExtendedScan) scan).getRowSet();
+      return rowRangeAdapter.rowSetToRangeSet(((BigtableExtendedScan) scan).getRowSet());
     } else {
-      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
-      ByteString startRow = ByteString.copyFrom(scan.getStartRow());
+      RangeSet<RowKeyWrapper> rangeSet = TreeRangeSet.create();
       if (scan.isGetScan()) {
-        rowSetBuilder.addRowKeys(startRow);
+        ByteString startRow = ByteString.copyFrom(scan.getStartRow());
+        rangeSet.add(Range.singleton(new RowKeyWrapper(startRow)));
       } else {
-        RowRange.Builder range =  RowRange.newBuilder();
-        if (!startRow.isEmpty()) {
-          if (!OPEN_CLOSED_AVAILABLE || scan.includeStartRow()) {
-            // the default for start is closed
-            range.setStartKeyClosed(startRow);
-          } else {
-            range.setStartKeyOpen(startRow);
-          }
-        }
-
-        ByteString stopRow = ByteString.copyFrom(scan.getStopRow());
-        if (!stopRow.isEmpty()) {
-          if (!OPEN_CLOSED_AVAILABLE || !scan.includeStopRow()) {
-            // the default for stop is open
-            range.setEndKeyOpen(stopRow);
-          } else {
-            range.setEndKeyClosed(stopRow);
-          }
-        }
-        rowSetBuilder.addRowRanges(range);
+        rangeSet.add(getRange(scan));
       }
-      return rowSetBuilder.build();
+
+      return narrowRangeSet(rangeSet, scan.getFilter());
+    }
+  }
+
+  private Range<RowKeyWrapper> getRange(Scan scan){
+    final ByteString startRow = ByteString.copyFrom(scan.getStartRow());
+    final ByteString stopRow = ByteString.copyFrom(scan.getStopRow());
+
+    final boolean startUnbounded = startRow.isEmpty();
+    final boolean endUnbounded = stopRow.isEmpty();
+
+    final BoundType startBound = (!OPEN_CLOSED_AVAILABLE || scan.includeStartRow()) ? BoundType.CLOSED: BoundType.OPEN;
+    final BoundType endBound = (!OPEN_CLOSED_AVAILABLE || !scan.includeStopRow()) ? BoundType.OPEN: BoundType.CLOSED;
+
+    if (startUnbounded && endUnbounded) {
+      return Range.all();
+    } else if (startUnbounded) {
+      return Range.upTo(new RowKeyWrapper(stopRow), endBound);
+    } else if (endUnbounded) {
+      return Range.downTo(new RowKeyWrapper(startRow), startBound);
+    } else {
+      return Range.range(new RowKeyWrapper(startRow), startBound,
+          new RowKeyWrapper(stopRow), endBound);
     }
   }
 
@@ -268,22 +309,24 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
   }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   private RowSet narrowRowSet(RowSet rowSet, Filter filter) {
 =======
   // TODO: find way to narrow ByteStringRange directly
   private RowSet narrowRowSet(RowSet rowSet, org.apache.hadoop.hbase.filter.Filter filter) {
 >>>>>>> fix whitespace & comments  also fixed testPageFilter
+=======
+  private RangeSet<RowKeyWrapper> narrowRangeSet(RangeSet<RowKeyWrapper> rangeSet, Filter filter) {
+>>>>>>> adding RangeSet method ScanAdapter
     if (filter == null) {
-      return rowSet;
+      return rangeSet;
     }
     RangeSet<RowKeyWrapper> filterRangeSet = filterAdapter.getIndexScanHint(filter);
     if (filterRangeSet.encloses(Range.<RowKeyWrapper>all())) {
-      return rowSet;
+      return rangeSet;
     }
-    RangeSet<RowKeyWrapper> scanRangeSet = rowRangeAdapter.rowSetToRangeSet(rowSet);
-    // intersection of scan ranges & filter ranges
-    scanRangeSet.removeAll(filterRangeSet.complement());
-    return rowRangeAdapter.rangeSetToRowSet(scanRangeSet);
+    rangeSet.removeAll(filterRangeSet.complement());
+    return rangeSet;
   }
 
   private Filters.Filter createColumnQualifierFilter(byte[] unquotedQualifier) {

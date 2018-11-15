@@ -253,8 +253,8 @@ public class TestScanAdapter {
     RowSet expected = RowSet.newBuilder()
         .addRowKeys(ByteStringer.wrap(row1))
         .addRowKeys(ByteStringer.wrap(row2))
-        .addRowRanges(toRange(startRow, stopRow))
         .addRowRanges(toRange(prefix, prefixEnd))
+        .addRowRanges(toRange(startRow, stopRow))
         .build();
 
 <<<<<<< HEAD
