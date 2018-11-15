@@ -21,10 +21,10 @@ import static com.google.cloud.bigtable.hbase.BigtableTestConstacts.TABLE_ID;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 
-import com.google.bigtable.v2.RowFilter;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
-import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.hbase.BigtableExtendedScan;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapterContext;
@@ -263,7 +263,7 @@ public class TestScanAdapter {
     );
     Mockito.when(filterAdapter.getIndexScanHint(any(Filter.class))).thenReturn(rangeSet);
     Mockito.when(filterAdapter.adaptFilter(any(FilterAdapterContext.class), eq(fakeFilter)))
-        .thenReturn(Optional.of(RowFilter.getDefaultInstance()));
+        .thenReturn(Optional.of(Filters.FILTERS.pass()));
 
     Scan scan = new Scan()
         .withStartRow("a".getBytes())

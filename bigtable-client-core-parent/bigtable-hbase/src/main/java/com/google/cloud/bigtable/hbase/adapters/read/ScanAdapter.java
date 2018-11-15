@@ -17,7 +17,6 @@ package com.google.cloud.bigtable.hbase.adapters.read;
 
 import static com.google.cloud.bigtable.data.v2.models.Filters.FILTERS;
 
-import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.data.v2.models.Filters;
@@ -127,9 +126,9 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
       chain.filter(createColumnLimitFilter(scan.getMaxVersions()));
     }
 
-    Optional<RowFilter> userFilter = createUserFilter(scan, hooks);
+    Optional<Filters.Filter> userFilter = createUserFilter(scan, hooks);
     if (userFilter.isPresent()) {
-      chain.filter(FILTERS.fromProto(userFilter.get()));
+      chain.filter(userFilter.get());
     }
 
     return chain;
@@ -141,7 +140,6 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     throwIfUnsupportedScan(scan);
 
     rowSetToByteRange(toRowSet(scan), query);
-
     query.filter(buildFilter(scan, readHooks));
 
     if (LIMIT_AVAILABLE && scan.getLimit() > 0) {
@@ -244,7 +242,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     }
   }
 
-  private Optional<RowFilter> createUserFilter(Scan scan, ReadHooks hooks) {
+  private Optional<Filters.Filter> createUserFilter(Scan scan, ReadHooks hooks) {
     if (scan.getFilter() == null) {
       return Optional.absent();
     }
