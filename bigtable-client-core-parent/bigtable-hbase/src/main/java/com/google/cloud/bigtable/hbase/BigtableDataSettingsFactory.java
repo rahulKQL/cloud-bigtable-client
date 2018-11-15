@@ -64,7 +64,7 @@ public class BigtableDataSettingsFactory {
    */
   public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options)
       throws IOException, GeneralSecurityException {
-    checkState(!options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
+    checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
     
     BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
 
