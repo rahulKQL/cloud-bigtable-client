@@ -64,8 +64,10 @@ public class BigtableDataSettingsFactory {
    */
   public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options)
       throws IOException, GeneralSecurityException {
+    checkState(options.getProjectId() != null, "Project ID is required");
+    checkState(options.getInstanceId() != null, "Instance ID is required");
     checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
-    
+
     BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
 
     InstanceName instanceName = InstanceName.newBuilder().setProject(options.getProjectId())
@@ -135,7 +137,9 @@ public class BigtableDataSettingsFactory {
         .setFlowControlSettings(flowControlBuilder.build());
 
     // TODO: implement bulkMutationThrottling & bulkMutationRpcTargetMs, once available
-    builder.bulkMutationsSettings().setSimpleTimeoutNoRetries(
+    builder.bulkMutationsSettings()
+      .setBatchingSettings(batchSettingsBuilder.build())
+      .setSimpleTimeoutNoRetries(
         ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()));
   }
 
