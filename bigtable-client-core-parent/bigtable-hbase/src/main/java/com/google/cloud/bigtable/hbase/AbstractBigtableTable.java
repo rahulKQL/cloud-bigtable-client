@@ -41,6 +41,7 @@ import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Increment;
+import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -351,17 +352,8 @@ public abstract class AbstractBigtableTable implements Table {
   @Override
   public void put(Put put) throws IOException {
     LOG.trace("put(Put)");
-    MutateRowRequest request = hbaseAdapter.adapt(put);
-    Span span = TRACER.spanBuilder("BigtableTable.put").startSpan();
-    try (Scope scope = TRACER.withSpan(span);
-        Timer.Context timerContext = metrics.putTimer.time()) {
-      client.mutateRow(request);
-    } catch (Throwable t) {
-      span.setStatus(Status.UNKNOWN);
-      throw logAndCreateIOException("put", put.getRow(), t);
-    } finally{
-      span.end();
-    }
+    MutateRowRequest request = hbaseAdapter.adapt(put).toProto(requestContext);
+    mutateRow(put, request, "put");
   }
 
   /** {@inheritDoc} */
@@ -407,16 +399,8 @@ public abstract class AbstractBigtableTable implements Table {
   @Override
   public void delete(Delete delete) throws IOException {
     LOG.trace("delete(Delete)");
-    Span span = TRACER.spanBuilder("BigtableTable.delete").startSpan();
-    try (Scope scope = TRACER.withSpan(span)) {
-      MutateRowRequest request = hbaseAdapter.adapt(delete);
-      client.mutateRow(request);
-    } catch (Throwable t) {
-      span.setStatus(Status.UNKNOWN);
-      throw logAndCreateIOException("delete", delete.getRow(), t);
-    } finally {
-      span.end();
-    }
+    MutateRowRequest request = hbaseAdapter.adapt(delete).toProto(requestContext);
+    mutateRow(delete, request, "delete");
   }
 
   /** {@inheritDoc} */
@@ -483,13 +467,26 @@ public abstract class AbstractBigtableTable implements Table {
     }
   }
 
+  private void mutateRow(Mutation mutation, MutateRowRequest mutateRowRequest, String type)
+      throws IOException {
+    Span span = TRACER.spanBuilder("BigtableTable." + type).startSpan();
+    try (Scope scope = TRACER.withSpan(span)) {
+      client.mutateRow(mutateRowRequest);
+    } catch (Throwable t) {
+      span.setStatus(Status.UNKNOWN);
+      throw logAndCreateIOException(type, mutation.getRow(), t);
+    } finally {
+      span.end();
+    }
+  }
+
   /** {@inheritDoc} */
   @Override
   public void mutateRow(RowMutations rm) throws IOException {
     LOG.trace("mutateRow(RowMutation)");
     Span span = TRACER.spanBuilder("BigtableTable.mutateRow").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      MutateRowRequest request = hbaseAdapter.adapt(rm);
+      MutateRowRequest request = hbaseAdapter.adapt(rm).toProto(requestContext);
       client.mutateRow(request);
     } catch (Throwable t) {
       span.setStatus(Status.UNKNOWN);
