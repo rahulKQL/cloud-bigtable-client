@@ -24,9 +24,6 @@ import com.google.cloud.bigtable.data.v2.models.InstanceName;
  */
 public class BigtableTestConstacts {
 
-  private BigtableTestConstacts() {
-  }
-
   public static final String PROJECT_ID = "test-project-id";
   public static final String INSTANCE_ID = "test-instance-id";
   public static final String TABLE_ID = "test-table-id";
@@ -35,4 +32,8 @@ public class BigtableTestConstacts {
       InstanceName.of(PROJECT_ID, INSTANCE_ID),
       APP_PROFILE_ID
   );
+
+  private BigtableTestConstacts() {
+  }
+
 }

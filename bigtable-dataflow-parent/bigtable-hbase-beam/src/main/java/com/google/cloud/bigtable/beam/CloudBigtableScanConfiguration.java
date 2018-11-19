@@ -30,7 +30,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.hadoop.hbase.client.Scan;
 
-import com.google.bigtable.repackaged.com.google.bigtable.admin.v2.Instance;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowRange;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowSet;
