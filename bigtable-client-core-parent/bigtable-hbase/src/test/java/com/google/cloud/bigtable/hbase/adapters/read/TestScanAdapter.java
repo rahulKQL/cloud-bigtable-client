@@ -38,6 +38,7 @@ import com.google.common.collect.RangeSet;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
@@ -334,5 +335,22 @@ public class TestScanAdapter {
     scanAdapter.adapt(scan, throwingReadHooks, query);
     int adaptedLimit = (int) query.toProto(REQUEST_CONTEXT).getRowsLimit();
     Assert.assertEquals(scan.getLimit(), adaptedLimit);
+  }
+
+  @Test
+  public void testIsGetScan() throws IOException{
+    byte[] key = Bytes.toBytes("key");
+    Get get = new Get(key);
+    get.setMaxVersions(Integer.MAX_VALUE);
+    Scan scan = new Scan(get);
+
+    Query query = Query.create(TABLE_ID);
+    scanAdapter.adapt(scan, throwingReadHooks, query);
+
+    RowSet result = query.toProto(REQUEST_CONTEXT).getRows();
+    RowSet expected = RowSet.newBuilder()
+            .addRowKeys(ByteString.copyFrom(key))
+            .build();
+    Assert.assertEquals(expected, result);
   }
 }
