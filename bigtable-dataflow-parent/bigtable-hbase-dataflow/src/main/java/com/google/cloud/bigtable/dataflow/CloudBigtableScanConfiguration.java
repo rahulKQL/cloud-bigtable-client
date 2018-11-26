@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigtable.dataflow;
 
+import com.google.cloud.bigtable.hbase.adapters.read.QueryReadHooks;
 import java.util.Map;
 import java.util.Objects;
 
@@ -31,7 +32,6 @@ import com.google.bigtable.repackaged.com.google.cloud.bigtable.grpc.BigtableIns
 import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
 import com.google.cloud.bigtable.batch.common.ByteStringUtil;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
-import com.google.cloud.bigtable.hbase.adapters.read.ReadRowsHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 import com.google.cloud.dataflow.sdk.io.range.ByteKeyRange;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
@@ -176,7 +176,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
     @Override
     public CloudBigtableScanConfiguration build() {
       if (request == null) {
-        ReadHooks<ReadRowsRequest, ReadRowsRequest> readHooks = new ReadRowsHooks();
+        ReadHooks<Query, Query> readHooks = new QueryReadHooks();
         if (scan == null) {
           scan = new Scan();
         }
@@ -186,7 +186,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         //TODO rahulkql: AppProfileId is not available here, need to change this after review.
         RequestContext reqContex = RequestContext.create(
             InstanceName.of(projectId, instanceId), "");
-        request = readHooks.applyPreSendHook(query.toProto(reqContex));
+        request = readHooks.applyPreSendHook(query).toProto(reqContex);
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
           request, additionalConfiguration);
