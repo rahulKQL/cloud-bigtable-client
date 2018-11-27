@@ -126,7 +126,7 @@ public class RowRangeAdapter {
    * Convert guava's RangeSet to Bigtable's ByteStringRange. Please note that this will convert
    * boundless ranges into unset key cases.
    */
-  void rangeSetToRowSet(RangeSet<RowKeyWrapper> guavaRangeSet, Query request) {
+  void rangeSetToRowSet(RangeSet<RowKeyWrapper> guavaRangeSet, Query query) {
 
     for (Range<RowKeyWrapper> guavaRange : guavaRangeSet.asRanges()) {
       // Is it a point?
@@ -134,7 +134,7 @@ public class RowRangeAdapter {
           && guavaRange.hasUpperBound() && guavaRange.upperBoundType() == BoundType.CLOSED
           && guavaRange.lowerEndpoint().equals(guavaRange.upperEndpoint())) {
 
-        request.rowKey(guavaRange.lowerEndpoint().getKey());
+        query.rowKey(guavaRange.lowerEndpoint().getKey());
       } else {
         ByteStringRange byteRange = ByteStringRange.unbounded();
 
@@ -167,7 +167,7 @@ public class RowRangeAdapter {
                   guavaRange.upperBoundType());
           }
         }
-        request.range(byteRange);
+        query.range(byteRange);
       }
     }
   }

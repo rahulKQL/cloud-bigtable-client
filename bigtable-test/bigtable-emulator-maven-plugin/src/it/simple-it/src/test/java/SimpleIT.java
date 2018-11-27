@@ -20,7 +20,7 @@ import com.google.bigtable.admin.v2.Table;
 import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Mutation.SetCell;
-import com.google.bigtable.v2.Query;
+import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
@@ -86,7 +86,7 @@ public class SimpleIT {
               .build()
       );
 
-      List<Row> results = dataClient.readRowsAsync(Query.newBuilder()
+      List<Row> results = dataClient.readRowsAsync(ReadRowsRequest.newBuilder()
           .setTableName(tableName)
           .setRows(
               RowSet.newBuilder()

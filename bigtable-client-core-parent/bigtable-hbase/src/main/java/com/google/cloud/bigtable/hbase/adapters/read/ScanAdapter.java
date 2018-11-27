@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Google LLC. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,14 +140,14 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
 
   /** {@inheritDoc} */
   @Override
-  public void adapt(Scan scan, ReadHooks readHooks, Query request) {
+  public void adapt(Scan scan, ReadHooks readHooks, Query query) {
     throwIfUnsupportedScan(scan);
 
-    toByteStringRange(scan, request);
-    request.filter(buildFilter(scan, readHooks));
+    toByteStringRange(scan, query);
+    query.filter(buildFilter(scan, readHooks));
 
     if (LIMIT_AVAILABLE && scan.getLimit() > 0) {
-      request.limit(scan.getLimit());
+      query.limit(scan.getLimit());
     }
   }
 
@@ -178,7 +178,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
     }
   }
 
-  private static ByteString quoteRegex(byte[] unquoted)  {
+  private static ByteString quoteRegex(byte[] unquoted) {
     try {
       return ReaderExpressionHelper.quoteRegularExpression(unquoted);
     } catch (IOException e) {

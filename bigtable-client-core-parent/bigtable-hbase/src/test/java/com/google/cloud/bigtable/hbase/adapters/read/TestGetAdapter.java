@@ -64,7 +64,7 @@ public class TestGetAdapter {
     }
 
     @Override
-    public Query applyPreSendHook(Query request) {
+    public Query applyPreSendHook(Query query) {
       throw new IllegalStateException("Read hooks not supported in tests.");
     }
   };

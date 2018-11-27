@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Google LLC. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,8 +123,8 @@ public class TestPageFilterAdapter {
     Filters.Filter adaptedFilter = pageFilterAdapter.adapt(context, pageFilter);
     Assert.assertNull("PageFilterAdapter should not return a Filters.Filter.", adaptedFilter);
 
-    Query request = Query.create(TABLE_ID).limit(100);
-    Query postHookRequest = hooks.applyPreSendHook(request);
+    Query query = Query.create(TABLE_ID).limit(100);
+    Query postHookRequest = hooks.applyPreSendHook(query);
     Assert.assertEquals(20, postHookRequest.toProto(requestContext).getRowsLimit());
   }
 }

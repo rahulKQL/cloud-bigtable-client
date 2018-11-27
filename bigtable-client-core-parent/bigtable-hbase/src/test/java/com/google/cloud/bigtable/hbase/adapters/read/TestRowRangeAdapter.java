@@ -52,9 +52,9 @@ public class TestRowRangeAdapter {
     RangeSet<RowKeyWrapper> out = adapter.rowSetToRangeSet(in);
 
     assertEquals(ImmutableRangeSet.builder().build(), out);
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -71,9 +71,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -96,9 +96,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -121,9 +121,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -146,9 +146,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -171,9 +171,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -190,9 +190,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -234,9 +234,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -258,9 +258,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -282,9 +282,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -306,9 +306,9 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 
   @Test
@@ -348,8 +348,8 @@ public class TestRowRangeAdapter {
 
     assertEquals(expected, out);
 
-    Query request = Query.create(TABLE_ID);
-    adapter.rangeSetToRowSet(out, request);
-    assertEquals(in, request.toProto(requestContext).getRows());
+    Query query = Query.create(TABLE_ID);
+    adapter.rangeSetToRowSet(out, query);
+    assertEquals(in, query.toProto(requestContext).getRows());
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Google LLC. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ public class PageFilterAdapter extends TypedFilterAdapterBase<PageFilter> {
     final long pageSize = filter.getPageSize();
     context.getReadHooks().composePreSendHook(new Function<Query, Query>() {
       @Override
-      public Query apply(Query request) {
-        return request.limit(pageSize);
+      public Query apply(Query query) {
+        return query.limit(pageSize);
       }
     });
     return null;
