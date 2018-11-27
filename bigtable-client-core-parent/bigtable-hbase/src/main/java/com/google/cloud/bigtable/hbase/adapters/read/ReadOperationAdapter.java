@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2018 Google LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,7 @@
  */
 package com.google.cloud.bigtable.hbase.adapters.read;
 
-import com.google.bigtable.v2.ReadRowsRequest;
-
+import com.google.cloud.bigtable.data.v2.models.Query;
 import org.apache.hadoop.hbase.client.Operation;
 
 /**
@@ -31,7 +30,7 @@ public interface ReadOperationAdapter<T extends Operation> {
    *
    * @param request a T object.
    * @param readHooks a {@link com.google.cloud.bigtable.hbase.adapters.read.ReadHooks} object.
-   * @return a {@link com.google.bigtable.v2.ReadRowsRequest.Builder} object.
+   * @return a {@link Query} object.
    */
-  ReadRowsRequest.Builder adapt(T request, ReadHooks readHooks);
+  void adapt(T request, ReadHooks readHooks, Query query);
 }

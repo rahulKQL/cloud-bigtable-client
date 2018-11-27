@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2018 Google LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,9 @@
 package com.google.cloud.bigtable.hbase.adapters;
 
 import com.google.api.core.InternalApi;
+import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
-import com.google.cloud.bigtable.data.v2.models.InstanceName;
-import com.google.cloud.bigtable.data.v2.models.Mutation;
-import com.google.cloud.bigtable.data.v2.models.MutationApi;
-import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
-import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.data.v2.models.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import org.apache.hadoop.conf.Configuration;
@@ -37,7 +34,6 @@ import org.apache.hadoop.hbase.client.Scan;
 import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.ReadModifyWriteRowRequest;
-import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
@@ -170,26 +166,26 @@ public class HBaseRequestAdapter {
    * <p>adapt.</p>
    *
    * @param get a {@link org.apache.hadoop.hbase.client.Get} object.
-   * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
+   * @return a {@link Query} object.
    */
-  public ReadRowsRequest adapt(Get get) {
+  public Query adapt(Get get) {
     ReadHooks readHooks = new DefaultReadHooks();
-    ReadRowsRequest.Builder builder = Adapters.GET_ADAPTER.adapt(get, readHooks);
-    builder.setTableName(getTableNameString());
-    return readHooks.applyPreSendHook(builder.build());
+    Query query = Query.create(bigtableTableName.getTableId());
+    Adapters.GET_ADAPTER.adapt(get, readHooks, query);
+    return readHooks.applyPreSendHook(query);
   }
 
   /**
    * <p>adapt.</p>
    *
    * @param scan a {@link org.apache.hadoop.hbase.client.Scan} object.
-   * @return a {@link com.google.bigtable.v2.ReadRowsRequest} object.
+   * @return a {@link Query} object.
    */
-  public ReadRowsRequest adapt(Scan scan) {
+  public Query adapt(Scan scan) {
     ReadHooks readHooks = new DefaultReadHooks();
-    ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-    builder.setTableName(getTableNameString());
-    return readHooks.applyPreSendHook(builder.build());
+    Query query = Query.create(bigtableTableName.getTableId());
+    Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+    return readHooks.applyPreSendHook(query);
   }
 
   /**

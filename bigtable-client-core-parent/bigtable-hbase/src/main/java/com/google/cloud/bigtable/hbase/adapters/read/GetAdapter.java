@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2018 Google LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.google.cloud.bigtable.hbase.adapters.read;
 
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.RowSet;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.protobuf.ByteString;
 
 import org.apache.hadoop.hbase.client.Get;
@@ -55,12 +56,12 @@ public class GetAdapter implements ReadOperationAdapter<Get> {
 
   /** {@inheritDoc} */
   @Override
-  public ReadRowsRequest.Builder adapt(Get operation, ReadHooks readHooks) {
+  public void adapt(Get operation, ReadHooks readHooks, Query query) {
     Scan operationAsScan = new Scan(addKeyOnlyFilter(operation));
     scanAdapter.throwIfUnsupportedScan(operationAsScan);
-    return ReadRowsRequest.newBuilder()
-        .setFilter(scanAdapter.buildFilter(operationAsScan, readHooks).toProto())
-        .setRows(RowSet.newBuilder().addRowKeys(ByteString.copyFrom(operation.getRow())));
+
+    query.rowKey(ByteString.copyFrom(operation.getRow()))
+            .filter(scanAdapter.buildFilter(operationAsScan, readHooks));
   }
 
   private Get addKeyOnlyFilter(Get get) {

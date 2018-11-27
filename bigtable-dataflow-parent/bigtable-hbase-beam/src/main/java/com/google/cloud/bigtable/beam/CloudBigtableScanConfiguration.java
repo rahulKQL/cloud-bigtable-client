@@ -15,6 +15,10 @@
  */
 package com.google.cloud.bigtable.beam;
 
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -110,6 +114,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
       private final ByteString start;
       private final ByteString stop;
       private final ValueProvider<ReadRowsRequest> request;
+      //TODO(rahulkql): This also needs to be updated with Query
       private ReadRowsRequest cachedRequest;
 
       RequestWithKeysValueProvider(
@@ -276,8 +281,19 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         if (scan == null) {
           scan = new Scan();
         }
-        ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-        request =  StaticValueProvider.of(readHooks.applyPreSendHook(builder.build()));
+        Query query = Query.create(tableId.get());
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+        ValueProvider<String> appProfileIdValue = additionalConfiguration
+                .get(BigtableOptionsFactory.APP_PROFILE_ID_KEY);
+        String appProfileId = "";
+        if(appProfileIdValue != null) {
+          appProfileId = appProfileIdValue.get();
+        }
+        RequestContext requestContext = RequestContext.create(
+                InstanceName.of(projectId.get(), instanceId.get()),
+                appProfileId);
+        Query postHooksQuery = ((Query)readHooks.applyPreSendHook(query));
+        request =  StaticValueProvider.of(postHooksQuery.toProto(requestContext));
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
           request, additionalConfiguration);

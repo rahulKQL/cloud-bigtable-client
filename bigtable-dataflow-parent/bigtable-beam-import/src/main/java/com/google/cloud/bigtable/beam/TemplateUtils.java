@@ -16,6 +16,9 @@
 package com.google.cloud.bigtable.beam;
 
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.beam.sequencefiles.ExportJob.ExportOptions;
 import com.google.cloud.bigtable.beam.sequencefiles.ImportJob.ImportOptions;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
@@ -27,6 +30,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.ParseFilter;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
+import org.apache.hadoop.hbase.shaded.org.apache.commons.math3.analysis.function.Exp;
 
 /**
  * !!! DO NOT TOUCH THIS CLASS !!!
@@ -65,16 +69,19 @@ public class TemplateUtils {
     private final ValueProvider<Integer> maxVersion;
     private final ValueProvider<String> filter;
     private ReadRowsRequest cachedRequest;
+    private final ExportOptions options;
+    private final RequestContext requestContext;
 
-    RequestValueProvider(
-        ValueProvider<String> start,
-        ValueProvider<String> stop,
-        ValueProvider<Integer> maxVersion,
-        ValueProvider<String> filter) {
-      this.start = start;
-      this.stop = stop;
-      this.maxVersion = maxVersion;
-      this.filter = filter;
+    RequestValueProvider(ExportOptions options) {
+      this.start = options.getBigtableStartRow();
+      this.stop = options.getBigtableStopRow();
+      this.maxVersion = options.getBigtableMaxVersions();
+      this.filter = options.getBigtableFilter();
+      this.options = options;
+      this.requestContext = RequestContext.create(
+              InstanceName.of(options.getBigtableProject().get(),
+                      options.getBigtableInstanceId().get()),
+              options.getBigtableAppProfileId().get());
     }
 
     @Override
@@ -99,8 +106,9 @@ public class TemplateUtils {
         }
 
         ReadHooks readHooks = new DefaultReadHooks();
-        ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-        cachedRequest = readHooks.applyPreSendHook(builder.build());
+        Query query = Query.create(options.getBigtableTableId().get());
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+        cachedRequest = ((Query)readHooks.applyPreSendHook(query)).toProto(requestContext);
       }
       return cachedRequest;
     }
@@ -125,11 +133,7 @@ public class TemplateUtils {
   /** Builds CloudBigtableScanConfiguration from input runtime parameters for export job. */
   public static CloudBigtableScanConfiguration BuildExportConfig(ExportOptions opts) {
     ValueProvider<ReadRowsRequest> request =
-        new RequestValueProvider(
-            opts.getBigtableStartRow(),
-            opts.getBigtableStopRow(),
-            opts.getBigtableMaxVersions(),
-            opts.getBigtableFilter());
+        new RequestValueProvider(opts);
     CloudBigtableScanConfiguration.Builder configBuilder =
         new CloudBigtableScanConfiguration.Builder()
             .withProjectId(opts.getBigtableProject())

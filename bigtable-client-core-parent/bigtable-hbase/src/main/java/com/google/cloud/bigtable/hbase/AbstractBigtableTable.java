@@ -270,7 +270,7 @@ public abstract class AbstractBigtableTable implements Table {
 
   private FlatRow getResults(Get get, String method) throws IOException {
     try (Timer.Context ignored = metrics.getTimer.time()) {
-      List<FlatRow> list = client.readFlatRowsList(hbaseAdapter.adapt(get));
+      List<FlatRow> list = client.readFlatRowsList(hbaseAdapter.adapt(get).toProto(requestContext));
       switch(list.size()) {
       case 0:
         return null;
@@ -297,7 +297,7 @@ public abstract class AbstractBigtableTable implements Table {
     Span span = TRACER.spanBuilder("BigtableTable.scan").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
       com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> scanner =
-          client.readFlatRows(hbaseAdapter.adapt(scan));
+          client.readFlatRows(hbaseAdapter.adapt(scan).toProto(requestContext));
       if (hasWhileMatchFilter(scan.getFilter())) {
         return Adapters.BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER.adapt(scanner, span);
       }

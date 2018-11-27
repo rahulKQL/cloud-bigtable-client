@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2018 Google LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.google.cloud.bigtable.hbase.adapters.filters;
 
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.data.v2.models.Filters.Filter;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 
@@ -43,13 +44,12 @@ public class PageFilterAdapter extends TypedFilterAdapterBase<PageFilter> {
   @Override
   public Filter adapt(FilterAdapterContext context, PageFilter filter) throws IOException {
     final long pageSize = filter.getPageSize();
-    context.getReadHooks().composePreSendHook(new Function<ReadRowsRequest, ReadRowsRequest>() {
+    context.getReadHooks().composePreSendHook(new Function<Query, Query>() {
       @Override
-      public ReadRowsRequest apply(ReadRowsRequest request) {
-        return request.toBuilder().setRowsLimit(pageSize).build();
+      public Query apply(Query request) {
+        return request.limit(pageSize);
       }
     });
-    // This filter cannot be translated to a RowFilter, all logic is done as a read hook.
     return null;
   }
 

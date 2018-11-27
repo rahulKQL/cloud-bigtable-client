@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2018 Google LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.google.cloud.bigtable.hbase.adapters.read;
 
-import com.google.bigtable.v2.ReadRowsRequest;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 
@@ -26,16 +26,16 @@ import com.google.common.base.Functions;
  * @version $Id: $Id
  */
 public class DefaultReadHooks implements ReadHooks {
-  private Function<ReadRowsRequest, ReadRowsRequest> preSendHook = Functions.identity();
+  private Function<Query, Query> preSendHook = Functions.identity();
   /** {@inheritDoc} */
   @Override
-  public void composePreSendHook(Function<ReadRowsRequest, ReadRowsRequest> newHook) {
+  public void composePreSendHook(Function<Query, Query> newHook) {
     preSendHook = Functions.compose(newHook, preSendHook);
   }
 
   /** {@inheritDoc} */
   @Override
-  public ReadRowsRequest applyPreSendHook(ReadRowsRequest readRowsRequest) {
-    return preSendHook.apply(readRowsRequest);
+  public Query applyPreSendHook(Query query) {
+    return preSendHook.apply(query);
   }
 }
