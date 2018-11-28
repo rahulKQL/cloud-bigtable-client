@@ -30,7 +30,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.ParseFilter;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
-import org.apache.hadoop.hbase.shaded.org.apache.commons.math3.analysis.function.Exp;
 
 /**
  * !!! DO NOT TOUCH THIS CLASS !!!
@@ -108,7 +107,8 @@ public class TemplateUtils {
         ReadHooks readHooks = new DefaultReadHooks();
         Query query = Query.create(options.getBigtableTableId().get());
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
-        cachedRequest = ((Query)readHooks.applyPreSendHook(query)).toProto(requestContext);
+        readHooks.applyPreSendHook(query);
+        cachedRequest = query.toProto(requestContext);
       }
       return cachedRequest;
     }

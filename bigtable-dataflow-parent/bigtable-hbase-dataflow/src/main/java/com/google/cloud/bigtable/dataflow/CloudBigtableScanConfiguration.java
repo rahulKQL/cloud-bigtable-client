@@ -183,10 +183,10 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         }
         Query query = Query.create(tableId);
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
-        RequestContext requestContext = RequestContext.create(
-                InstanceName.of(projectId, instanceId), "");
-
-        request = ((Query)readHooks.applyPreSendHook(query)).toProto(requestContext);
+        RequestContext requestContext =
+            RequestContext.create(InstanceName.of(projectId, instanceId), "");
+        readHooks.applyPreSendHook(query);
+        request = query.toProto(requestContext);
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
           request, additionalConfiguration);

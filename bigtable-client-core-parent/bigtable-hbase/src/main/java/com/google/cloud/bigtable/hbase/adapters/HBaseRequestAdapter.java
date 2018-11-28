@@ -16,9 +16,13 @@
 package com.google.cloud.bigtable.hbase.adapters;
 
 import com.google.api.core.InternalApi;
-import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
-import com.google.cloud.bigtable.data.v2.models.*;
+import com.google.cloud.bigtable.data.v2.models.InstanceName;
+import com.google.cloud.bigtable.data.v2.models.Mutation;
+import com.google.cloud.bigtable.data.v2.models.MutationApi;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import org.apache.hadoop.conf.Configuration;
@@ -34,6 +38,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.ReadModifyWriteRowRequest;
+import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
@@ -165,27 +170,29 @@ public class HBaseRequestAdapter {
   /**
    * <p>adapt.</p>
    *
-   * @param get a {@link org.apache.hadoop.hbase.client.Get} object.
-   * @return a {@link Query} object.
+   * @param get a {@link Get} object.
+   * @return a {@link ReadRowsRequest} object.
    */
-  public Query adapt(Get get) {
+  public ReadRowsRequest adapt(Get get) {
     ReadHooks readHooks = new DefaultReadHooks();
     Query query = Query.create(bigtableTableName.getTableId());
     Adapters.GET_ADAPTER.adapt(get, readHooks, query);
-    return readHooks.applyPreSendHook(query);
+    readHooks.applyPreSendHook(query);
+    return query.toProto(requestContext);
   }
 
   /**
    * <p>adapt.</p>
    *
-   * @param scan a {@link org.apache.hadoop.hbase.client.Scan} object.
-   * @return a {@link Query} object.
+   * @param scan a {@link Scan} object.
+   * @return a {@link ReadRowsRequest} object.
    */
-  public Query adapt(Scan scan) {
+  public ReadRowsRequest adapt(Scan scan) {
     ReadHooks readHooks = new DefaultReadHooks();
     Query query = Query.create(bigtableTableName.getTableId());
     Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
-    return readHooks.applyPreSendHook(query);
+    readHooks.applyPreSendHook(query);
+    return query.toProto(requestContext);
   }
 
   /**

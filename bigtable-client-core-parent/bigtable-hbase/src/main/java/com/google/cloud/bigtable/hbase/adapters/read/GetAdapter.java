@@ -15,8 +15,6 @@
  */
 package com.google.cloud.bigtable.hbase.adapters.read;
 
-import com.google.bigtable.v2.ReadRowsRequest;
-import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.protobuf.ByteString;
 
@@ -26,7 +24,7 @@ import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.KeyOnlyFilter;
 
 /**
- * A Get adapter that transform the Get into a ReadRowsRequest using the proto-based
+ * A {@link Get} adapter that transform the Get into a {@link Query} using the proto-based
  * filter language.
  *
  * @author sduskis
@@ -48,7 +46,7 @@ public class GetAdapter implements ReadOperationAdapter<Get> {
   /**
    * <p>Constructor for GetAdapter.</p>
    *
-   * @param scanAdapter a {@link com.google.cloud.bigtable.hbase.adapters.read.ScanAdapter} object.
+   * @param scanAdapter a {@link ScanAdapter} object.
    */
   public GetAdapter(ScanAdapter scanAdapter) {
     this.scanAdapter = scanAdapter;
@@ -60,8 +58,8 @@ public class GetAdapter implements ReadOperationAdapter<Get> {
     Scan operationAsScan = new Scan(addKeyOnlyFilter(operation));
     scanAdapter.throwIfUnsupportedScan(operationAsScan);
 
-    query.rowKey(ByteString.copyFrom(operation.getRow()))
-            .filter(scanAdapter.buildFilter(operationAsScan, readHooks));
+    query.filter(scanAdapter.buildFilter(operationAsScan, readHooks))
+        .rowKey(ByteString.copyFrom(operation.getRow()));
   }
 
   private Get addKeyOnlyFilter(Get get) {

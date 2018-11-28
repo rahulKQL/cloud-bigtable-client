@@ -114,7 +114,6 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
       private final ByteString start;
       private final ByteString stop;
       private final ValueProvider<ReadRowsRequest> request;
-      //TODO(rahulkql): This also needs to be updated with Query
       private ReadRowsRequest cachedRequest;
 
       RequestWithKeysValueProvider(
@@ -283,20 +282,19 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         }
         Query query = Query.create(tableId.get());
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
-        ValueProvider<String> appProfileIdValue = additionalConfiguration
-                .get(BigtableOptionsFactory.APP_PROFILE_ID_KEY);
+        ValueProvider<String> appProfileIdValue =
+            additionalConfiguration.get(BigtableOptionsFactory.APP_PROFILE_ID_KEY);
         String appProfileId = "";
-        if(appProfileIdValue != null) {
+        if (appProfileIdValue != null) {
           appProfileId = appProfileIdValue.get();
         }
-        RequestContext requestContext = RequestContext.create(
-                InstanceName.of(projectId.get(), instanceId.get()),
-                appProfileId);
-        Query postHooksQuery = ((Query)readHooks.applyPreSendHook(query));
-        request =  StaticValueProvider.of(postHooksQuery.toProto(requestContext));
+        RequestContext requestContext =
+            RequestContext.create(InstanceName.of(projectId.get(), instanceId.get()), appProfileId);
+        readHooks.applyPreSendHook(query);
+        request = StaticValueProvider.of(query.toProto(requestContext));
       }
-      return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
-          request, additionalConfiguration);
+      return new CloudBigtableScanConfiguration(projectId, instanceId, tableId, request,
+          additionalConfiguration);
     }
   }
 

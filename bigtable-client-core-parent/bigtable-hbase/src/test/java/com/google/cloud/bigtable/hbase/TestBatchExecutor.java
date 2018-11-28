@@ -132,11 +132,9 @@ public class TestBatchExecutor {
   private ListenableFuture mockFuture;
 
   private HBaseRequestAdapter requestAdapter;
-
-  private BigtableOptions options;
   @Before
   public void setup() throws InterruptedException {
-    options = BigtableOptions.builder()
+    final BigtableOptions options = BigtableOptions.builder()
         .setProjectId("projectId")
         .setInstanceId("instanceId")
         .build();
@@ -240,11 +238,7 @@ public class TestBatchExecutor {
     Object[] results = new Object[2];
 
     try {
-      final BigtableOptions options = BigtableOptions.builder()
-              .setProjectId("projectId")
-              .setInstanceId("instanceId")
-              .build();
-      createExecutor(options).batch(gets, results);
+      createExecutor(BigtableOptions.getDefaultOptions()).batch(gets, results);
     } catch(RetriesExhaustedWithDetailsException ignored) {
     }
     Assert.assertTrue("first result is a result", results[0] instanceof Result);
@@ -260,7 +254,7 @@ public class TestBatchExecutor {
     setFuture(ImmutableList.of(response));
     final Callback<Result> callback = Mockito.mock(Callback.class);
     List<Get> gets = Arrays.asList(new Get(key));
-    createExecutor(options).batchCallback(gets, new Object[1], callback);
+    createExecutor(BigtableOptions.getDefaultOptions()).batchCallback(gets, new Object[1], callback);
 
     verify(callback, times(1)).update(same(BatchExecutor.NO_REGION), same(key),
       argThat(matchesRow(Adapters.FLAT_ROW_ADAPTER.adaptResponse(response))));
@@ -298,7 +292,7 @@ public class TestBatchExecutor {
         .addCell("family", ByteString.EMPTY, System.nanoTime() / 1000, cellValue).build();
     when(mockFuture.get()).thenReturn(row);
 
-    BatchExecutor underTest = createExecutor(options);
+    BatchExecutor underTest = createExecutor(BigtableOptions.getDefaultOptions());
     Result[] results = underTest.batch(gets);
     verify(mockBulkRead, times(10)).add(any(ReadRowsRequest.class));
     verify(mockBulkRead, times(1)).flush();
@@ -331,6 +325,6 @@ public class TestBatchExecutor {
 
   private Result[] batch(final List<? extends org.apache.hadoop.hbase.client.Row> actions)
       throws Exception {
-    return createExecutor(options).batch(actions);
+    return createExecutor(BigtableOptions.getDefaultOptions()).batch(actions);
   }
 }

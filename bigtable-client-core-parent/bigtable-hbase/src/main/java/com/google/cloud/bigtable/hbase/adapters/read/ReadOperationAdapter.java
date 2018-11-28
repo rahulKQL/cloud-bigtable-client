@@ -29,8 +29,8 @@ public interface ReadOperationAdapter<T extends Operation> {
    * <p>adapt.</p>
    *
    * @param request a T object.
-   * @param readHooks a {@link com.google.cloud.bigtable.hbase.adapters.read.ReadHooks} object.
-   * @return a {@link Query} object.
+   * @param readHooks a {@link ReadHooks} object.
+   * @param query a  {@link Query} object.
    */
   void adapt(T request, ReadHooks readHooks, Query query);
 }

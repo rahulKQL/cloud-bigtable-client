@@ -27,12 +27,12 @@ import com.google.common.collect.TreeRangeSet;
 import com.google.protobuf.ByteString;
 
 /**
- * Adapter to convert between a Bigtable RowSet and guava's RangeSet.
+ * Adapter to convert between a Bigtable {@link RowSet} and guava's {@link RangeSet}.
  */
 public class RowRangeAdapter {
 
   /**
-   * Convert bigtable's RowSet -> Guava's RangeSet.
+   * Convert bigtable's {@link RowSet} -> Guava's {@link RangeSet}.
    * Note that this will normalize the ranges, such that: overlapping keys and ranges will be merged
    * and empty range keys will be converted in boundless ranges.
    */
@@ -48,7 +48,7 @@ public class RowRangeAdapter {
   }
 
   /**
-   * Convert Bigtable's RowRange -> guava Range.
+   * Convert Bigtable's {@link RowRange} -> guava {@link Range}.
    */
   private Range<RowKeyWrapper> rowRangeToRange(RowRange btRange) {
     final BoundType startBound;
@@ -69,12 +69,8 @@ public class RowRangeAdapter {
         break;
       default:
         throw new IllegalArgumentException("Unexpected start key case: " +
-                btRange.getStartKeyCase());
+            btRange.getStartKeyCase());
     }
-    // Bigtable doesn't allow empty row keys, so an empty start row which is open or closed is
-    // considered unbounded. ie. all row keys are bigger than the empty key (no need to
-    // differentiate between open/closed)
-    final boolean startUnbounded = startKey.isEmpty();
 
     final BoundType endBound;
     final ByteString endKey;
@@ -98,8 +94,11 @@ public class RowRangeAdapter {
     return boundedRange(startBound, startKey, endBound, endKey);
   }
 
-  Range<RowKeyWrapper> boundedRange(BoundType startBound, ByteString startKey,
-          BoundType endBound, ByteString endKey){
+  /**
+   * To determine {@link Range<RowKeyWrapper>} based start/end key & {@link BoundType}.
+   */
+  Range<RowKeyWrapper> boundedRange(BoundType startBound, ByteString startKey, BoundType endBound,
+      ByteString endKey) {
     // Bigtable doesn't allow empty row keys, so an empty start row which is open or closed is
     // considered unbounded. ie. all row keys are bigger than the empty key (no need to
     // differentiate between open/closed)
@@ -118,12 +117,12 @@ public class RowRangeAdapter {
       return Range.downTo(new RowKeyWrapper(startKey), startBound);
     } else {
       return Range.range(new RowKeyWrapper(startKey), startBound,
-              new RowKeyWrapper(endKey), endBound);
+          new RowKeyWrapper(endKey), endBound);
     }
   }
 
   /**
-   * Convert guava's RangeSet to Bigtable's ByteStringRange. Please note that this will convert
+   * Convert guava's {@link RangeSet} to Bigtable's {@link ByteStringRange}. Please note that this will convert
    * boundless ranges into unset key cases.
    */
   void rangeSetToRowSet(RangeSet<RowKeyWrapper> guavaRangeSet, Query query) {

@@ -19,7 +19,7 @@ import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.common.base.Function;
 
 /**
- * Hooks for modifying a Query before being sent to Cloud Bigtable.
+ * Hooks for modifying a {@link Query} before being sent to Cloud Bigtable.
  *
  * Note that it is expected that this will be extended to include post-read
  * hooks to transform Rows when appropriate.
@@ -30,7 +30,7 @@ import com.google.common.base.Function;
 public interface ReadHooks {
 
   /**
-   * Add a Function that will modify the Query before it is sent to Cloud Bigtable.
+   * Add a {@link Function} that will modify the {@link Query} before it is sent to Cloud Bigtable.
    *
    * @param newHook a {@link Function} object.
    */
@@ -40,7 +40,6 @@ public interface ReadHooks {
    * Apply all pre-send hooks to the given request.
    *
    * @param query a {@link Query} object.
-   * @return a {@link Query} object.
    */
-  Query applyPreSendHook(Query query);
+  void applyPreSendHook(Query query);
 }

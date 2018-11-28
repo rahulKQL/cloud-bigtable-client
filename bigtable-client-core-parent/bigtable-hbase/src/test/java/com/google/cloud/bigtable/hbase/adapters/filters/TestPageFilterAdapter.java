@@ -124,7 +124,7 @@ public class TestPageFilterAdapter {
     Assert.assertNull("PageFilterAdapter should not return a Filters.Filter.", adaptedFilter);
 
     Query query = Query.create(TABLE_ID).limit(100);
-    Query postHookRequest = hooks.applyPreSendHook(query);
-    Assert.assertEquals(20, postHookRequest.toProto(requestContext).getRowsLimit());
+    hooks.applyPreSendHook(query);
+    Assert.assertEquals(20, query.toProto(requestContext).getRowsLimit());
   }
 }

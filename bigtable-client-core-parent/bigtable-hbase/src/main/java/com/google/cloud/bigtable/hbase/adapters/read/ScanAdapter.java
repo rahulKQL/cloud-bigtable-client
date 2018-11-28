@@ -46,7 +46,7 @@ import java.util.Map;
 import java.util.NavigableSet;
 
 /**
- * An adapter for Scan operation that makes use of the proto filter language.
+ * An adapter for {@link Scan} operation that makes use of the proto filter language.
  *
  * @author sduskis
  * @version $Id: $Id
@@ -85,7 +85,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
   /**
    * <p>Constructor for ScanAdapter.</p>
    *
-   * @param filterAdapter a {@link com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter} object.
+   * @param filterAdapter a {@link FilterAdapter} object.
    */
   public ScanAdapter(FilterAdapter filterAdapter, RowRangeAdapter rowRangeAdapter) {
     this.filterAdapter = filterAdapter;
@@ -95,7 +95,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
   /**
    * <p>throwIfUnsupportedScan.</p>
    *
-   * @param scan a {@link org.apache.hadoop.hbase.client.Scan} object.
+   * @param scan a {@link Scan} object.
    */
   public void throwIfUnsupportedScan(Scan scan) {
     if (scan.getFilter() != null) {
@@ -109,9 +109,9 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
   }
 
   /**
-   * Given a Scan, build a RowFilter that include matching columns
+   * Given a {@link Scan}, build a {@link Filters.Filter} that include matching columns
    *
-   * @param scan a {@link org.apache.hadoop.hbase.client.Scan} object.
+   * @param scan a {@link Scan} object.
    * @param hooks a {@link ReadHooks} object.
    * @return a {@link Filters.Filter} object.
    */
@@ -168,11 +168,12 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
       if (scan.isGetScan()) {
         rangeSet.add(Range.singleton(new RowKeyWrapper(startRow)));
       } else {
-        final BoundType startBound = (!OPEN_CLOSED_AVAILABLE || scan.includeStartRow()) ? BoundType.CLOSED: BoundType.OPEN;
-        final BoundType endBound = (!OPEN_CLOSED_AVAILABLE || !scan.includeStopRow()) ? BoundType.OPEN: BoundType.CLOSED;
+        final BoundType startBound =
+            (!OPEN_CLOSED_AVAILABLE || scan.includeStartRow()) ? BoundType.CLOSED : BoundType.OPEN;
+        final BoundType endBound =
+            (!OPEN_CLOSED_AVAILABLE || !scan.includeStopRow()) ? BoundType.OPEN : BoundType.CLOSED;
 
-        rangeSet.add(rowRangeAdapter
-                .boundedRange(startBound, startRow, endBound,stopRow));
+        rangeSet.add(rowRangeAdapter.boundedRange(startBound, startRow, endBound, stopRow));
       }
       return rangeSet;
     }
@@ -192,8 +193,7 @@ public class ScanAdapter implements ReadOperationAdapter<Scan> {
       return Optional.absent();
     }
     try {
-      return filterAdapter
-          .adaptFilter(new FilterAdapterContext(scan, hooks), scan.getFilter());
+      return filterAdapter.adaptFilter(new FilterAdapterContext(scan, hooks), scan.getFilter());
     } catch (IOException ioe) {
       throw new RuntimeException("Failed to adapt filter", ioe);
     }

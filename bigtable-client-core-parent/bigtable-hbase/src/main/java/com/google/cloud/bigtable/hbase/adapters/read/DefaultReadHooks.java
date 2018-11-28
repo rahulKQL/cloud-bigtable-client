@@ -35,7 +35,7 @@ public class DefaultReadHooks implements ReadHooks {
 
   /** {@inheritDoc} */
   @Override
-  public Query applyPreSendHook(Query query) {
-    return preSendHook.apply(query);
+  public void applyPreSendHook(Query query) {
+    preSendHook.apply(query);
   }
 }

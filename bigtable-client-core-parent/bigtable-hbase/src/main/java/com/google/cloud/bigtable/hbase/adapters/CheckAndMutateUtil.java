@@ -53,7 +53,7 @@ public class CheckAndMutateUtil {
     }
 
     @Override
-    public Query applyPreSendHook(Query query) {
+    public void applyPreSendHook(Query query) {
       throw new UnsupportedOperationException(
           "We built a bad Filter for conditional mutation.");
     }

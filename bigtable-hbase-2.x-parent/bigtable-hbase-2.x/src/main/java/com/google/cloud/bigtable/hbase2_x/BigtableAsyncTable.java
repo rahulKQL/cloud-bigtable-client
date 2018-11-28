@@ -271,7 +271,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
    */
   @Override
   public CompletableFuture<Result> get(Get get) {
-    ReadRowsRequest request = hbaseAdapter.adapt(get).toProto(requestContext);
+    ReadRowsRequest request = hbaseAdapter.adapt(get);
     return client.readFlatRowsAsync(request).thenApply(BigtableAsyncTable::toResult);
   }
 
@@ -402,7 +402,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
       throw new UnsupportedOperationException(
           "scanAll with while match filter is not allowed");
     }
-    return client.readFlatRowsAsync(hbaseAdapter.adapt(scan).toProto(requestContext))
+    return client.readFlatRowsAsync(hbaseAdapter.adapt(scan))
          .thenApply(list -> map(list, Adapters.FLAT_ROW_ADAPTER::adaptResponse));
   }
 
@@ -413,7 +413,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
     final Span span = TRACER.spanBuilder("BigtableTable.scan").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
       com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> scanner =
-          client.getClient().readFlatRows(hbaseAdapter.adapt(scan).toProto(requestContext));
+          client.getClient().readFlatRows(hbaseAdapter.adapt(scan));
       if (AbstractBigtableTable.hasWhileMatchFilter(scan.getFilter())) {
         return Adapters.BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER.adapt(scanner, span);
       }
@@ -452,7 +452,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
       throw new UnsupportedOperationException(
           "scan with consumer and while match filter is not allowed");
     }
-    client.getClient().readFlatRows(hbaseAdapter.adapt(scan).toProto(requestContext), new StreamObserver<FlatRow>() {
+    client.getClient().readFlatRows(hbaseAdapter.adapt(scan), new StreamObserver<FlatRow>() {
       @Override
       public void onNext(FlatRow value) {
         consumer.onNext(Adapters.FLAT_ROW_ADAPTER.adaptResponse(value));
