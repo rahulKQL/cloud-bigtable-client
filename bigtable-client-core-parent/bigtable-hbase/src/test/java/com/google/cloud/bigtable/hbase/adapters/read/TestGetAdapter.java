@@ -22,7 +22,6 @@ import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.hbase.DataGenerationHelper;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
-import com.google.cloud.bigtable.hbase.filter.BigtableFilter;
 import com.google.common.base.Function;
 import com.google.protobuf.ByteString;
 
@@ -50,6 +49,7 @@ public class TestGetAdapter {
   private final RequestContext requestContext = RequestContext.create(
       InstanceName.of("ProjectId", "InstanceId"),
       "AppProfile");
+
   private GetAdapter getAdapter =
       new GetAdapter(new ScanAdapter(FilterAdapter.buildAdapter(), new RowRangeAdapter()));
   private DataGenerationHelper dataHelper = new DataGenerationHelper();
