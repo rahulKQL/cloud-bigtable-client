@@ -15,6 +15,9 @@
  */
 package com.google.cloud.bigtable.dataflow;
 
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
 import java.util.Map;
 import java.util.Objects;
 
@@ -177,8 +180,12 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         if (scan == null) {
           scan = new Scan();
         }
-        ReadRowsRequest.Builder builder = Adapters.SCAN_ADAPTER.adapt(scan, readHooks);
-        request = readHooks.applyPreSendHook(builder.build());
+        Query query = Query.create(tableId);
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+        RequestContext requestContext =
+            RequestContext.create(InstanceName.of(projectId, instanceId), "");
+        readHooks.applyPreSendHook(query);
+        request = query.toProto(requestContext);
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId,
           request, additionalConfiguration);
