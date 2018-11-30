@@ -15,15 +15,17 @@
  */
 package com.google.cloud.bigtable.dataflow;
 
+import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.APP_PROFILE_ID_KEY;
+
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
+
 import java.util.Map;
 import java.util.Objects;
 
 import com.google.cloud.bigtable.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.client.Scan;
-
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowRange;
 import com.google.bigtable.repackaged.com.google.bigtable.v2.RowSet;
@@ -182,8 +184,13 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         }
         Query query = Query.create(tableId);
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+
+        String appProfileId = "";
+        if (additionalConfiguration.containsKey(APP_PROFILE_ID_KEY)) {
+          appProfileId = additionalConfiguration.get(APP_PROFILE_ID_KEY);
+        }
         RequestContext requestContext =
-            RequestContext.create(InstanceName.of(projectId, instanceId), "");
+            RequestContext.create(InstanceName.of(projectId, instanceId), appProfileId);
         readHooks.applyPreSendHook(query);
         request = query.toProto(requestContext);
       }
