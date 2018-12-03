@@ -58,7 +58,7 @@ public class BigtableDataSettingsFactory {
   /**
    * To create an instance of {@link BigtableDataSettings} from {@link BigtableOptions}.
    *
-   * @param configuration a {@link BigtableOptions} object.
+   * @param options a {@link BigtableOptions} object.
    * @return a {@link BigtableDataSettings} object.
    * @throws IOException if any.
    */
@@ -147,7 +147,7 @@ public class BigtableDataSettingsFactory {
    * To build sampleRowKey with default Settings based on retries setting.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param bulkMutation a {@link BulkOptions} object.
+   * @param options a {@link BigtableOptions} object.
    */
   private static void buildSampleRowKeysSettings(Builder builder, BigtableOptions options) {
     builder.sampleRowKeysSettings()
@@ -158,7 +158,7 @@ public class BigtableDataSettingsFactory {
    * To build mutateRowSettings with default Settings based on retries setting.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param bulkMutation a {@link BulkOptions} object.
+   * @param options a {@link BigtableOptions} object.
    */
   private static void buildMutateRowSettings(Builder builder, BigtableOptions options) {
     builder.mutateRowSettings()
@@ -169,7 +169,7 @@ public class BigtableDataSettingsFactory {
    * To build readRows with default Settings based on retries setting.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param bulkMutation a {@link BulkOptions} object.
+   * @param options a {@link BigtableOptions} object.
    */
   private static void buildReadRowsSettings(Builder builder, BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
@@ -192,10 +192,10 @@ public class BigtableDataSettingsFactory {
   }
 
   /**
-   * This method builds ReadModifyWrite with no retry configurations
+   * This method builds ReadModifyWrite with no retry configurations.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param bulkMutation a {@link BulkOptions} object.
+   * @param rpcTimeoutMs a long value for RPC timeout.
    */
   private static void buildReadModifyWriteSettings(Builder builder, long rpcTimeoutMs) {
     builder.readModifyWriteRowSettings()
@@ -203,10 +203,10 @@ public class BigtableDataSettingsFactory {
   }
 
   /**
-   * This method builds CheckAndMutateRow with no retry configurations
+   * This method builds CheckAndMutateRow with no retry configurations.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param bulkMutation a {@link BulkOptions} object.
+   * @param rpcTimeoutMs a long value for RPC timeout.
    */
   private static void buildCheckAndMutateRowSettings(Builder builder, long rpcTimeoutMs) {
     builder.checkAndMutateRowSettings()
@@ -216,8 +216,7 @@ public class BigtableDataSettingsFactory {
   /**
    * To create default RetrySettings, for BigtableDataSettings.
    *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param bulkMutation a {@link BulkOptions} object.
+   * @param options a {@link BigtableOptions} object.
    */
   private static RetrySettings buildIdempotentRetrySettings(BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
@@ -245,8 +244,8 @@ public class BigtableDataSettingsFactory {
   /**
    * To create CredentialProvider based on CredentialType of BigtableOptions
    *
-   * @param builder
-   * @param credentialOptions
+   * @param builder a {@link BigtableDataSettings.Builder} object.
+   * @param credentialOptions a {@link CredentialOptions} object.
    * @throws FileNotFoundException
    * @throws IOException
    */
