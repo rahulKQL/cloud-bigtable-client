@@ -171,7 +171,7 @@ public class TestBulkMutation {
       Assert.assertFalse(operationAccountant.hasInflightOperations());
     }
   }
-
+  @Test
   public void testCallableTooFewStatuses() throws Exception {
     ListenableFuture<MutateRowResponse> rowFuture1 = underTest.add(createRequestEntry());
     ListenableFuture<MutateRowResponse> rowFuture2 = underTest.add(createRequestEntry());
@@ -198,6 +198,7 @@ public class TestBulkMutation {
     }
   }
 
+  @Test
   public void testRunOutOfTime() throws Exception {
     ListenableFuture<MutateRowResponse> rowFuture = underTest.add(createRequestEntry());
     setResponse(Status.DEADLINE_EXCEEDED);
