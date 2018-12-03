@@ -27,6 +27,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.ManagedChannelProvider;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Set;
@@ -69,7 +72,9 @@ public class TestBigtableDataSettingsFactory {
   @Before
   public void setup() {
     bigtableOptions = BigtableOptions.builder()
-        .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+        .setProjectId(TEST_PROJECT_ID)
+        .setInstanceId(TEST_INSTANCE_ID)
+        .setUserAgent(TEST_USER_AGENT)
         .build();
   }
 
