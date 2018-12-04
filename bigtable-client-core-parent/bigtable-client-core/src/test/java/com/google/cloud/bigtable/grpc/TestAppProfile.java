@@ -32,7 +32,8 @@ import com.google.bigtable.v2.SampleRowKeysRequest;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Queues;
@@ -183,20 +184,17 @@ public class TestAppProfile {
     BigtableTableName fakeTableName = new BigtableTableName(
         "projects/fake-project/instances/fake-instance/tables/fake-table");
 
-    MutateRowsRequest.Entry fakeMutationEntry = MutateRowsRequest.Entry
-        .newBuilder()
-        .setRowKey(ByteString.copyFromUtf8("fake-key"))
-        .build();
+    RowMutation fakeRowMutation = RowMutation.create(fakeTableName.getTableId(), "fake-key");
 
-    BulkMutation bulkMutation = defaultSession.createBulkMutation(fakeTableName);
-    bulkMutation.add(fakeMutationEntry);
+    BulkMutationWrapper bulkMutation = defaultSession.createBulkMutationWrapper(fakeTableName);
+    bulkMutation.add(fakeRowMutation);
     bulkMutation.flush();
 
     MutateRowsRequest req = fakeDataService.popLastRequest();
     Preconditions.checkState(req.getAppProfileId().isEmpty());
 
-    BulkMutation bulkMutation2 = profileSession.createBulkMutation(fakeTableName);
-    bulkMutation2.add(fakeMutationEntry);
+    BulkMutationWrapper bulkMutation2 = profileSession.createBulkMutationWrapper(fakeTableName);
+    bulkMutation2.add(fakeRowMutation);
     bulkMutation2.flush();
 
     MutateRowsRequest req2 = fakeDataService.popLastRequest();

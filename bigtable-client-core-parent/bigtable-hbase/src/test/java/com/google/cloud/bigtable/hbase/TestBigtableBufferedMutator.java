@@ -44,13 +44,13 @@ import org.mockito.MockitoAnnotations;
 
 import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowResponse;
-import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.ReadModifyWriteRowRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
-import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
@@ -73,7 +73,7 @@ public class TestBigtableBufferedMutator {
   private AsyncExecutor mockAsyncExecutor;
 
   @Mock
-  private BulkMutation mockBulkMutation;
+  private BulkMutationWrapper mockBulkMutation;
 
   @SuppressWarnings("rawtypes")
   private SettableFuture future = SettableFuture.create();
@@ -87,7 +87,7 @@ public class TestBigtableBufferedMutator {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(mockSession.createAsyncExecutor()).thenReturn(mockAsyncExecutor);
-    when(mockSession.createBulkMutation(any(BigtableTableName.class))).thenReturn(mockBulkMutation);
+    when(mockSession.createBulkMutationWrapper(any(BigtableTableName.class))).thenReturn(mockBulkMutation);
   }
 
   @After
@@ -113,20 +113,20 @@ public class TestBigtableBufferedMutator {
 
   @Test
   public void testPut() throws IOException, InterruptedException {
-    when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class))).thenReturn(future);
+    when(mockBulkMutation.add(any(RowMutation.class))).thenReturn(future);
     BigtableBufferedMutator underTest = createMutator(new Configuration(false));
     underTest.mutate(SIMPLE_PUT);
     verify(mockAsyncExecutor, times(0)).mutateRowAsync(any(MutateRowRequest.class));
-    verify(mockBulkMutation, times(1)).add(any(MutateRowsRequest.Entry.class));
+    verify(mockBulkMutation, times(1)).add(any(RowMutation.class));
   }
 
   @Test
   public void testDelete() throws IOException, InterruptedException {
-    when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class))).thenReturn(future);
+    when(mockBulkMutation.add(any(RowMutation.class))).thenReturn(future);
     BigtableBufferedMutator underTest = createMutator(new Configuration(false));
     underTest.mutate(new Delete(EMPTY_BYTES));
     verify(mockAsyncExecutor, times(0)).mutateRowAsync(any(MutateRowRequest.class));
-    verify(mockBulkMutation, times(1)).add(any(MutateRowsRequest.Entry.class));
+    verify(mockBulkMutation, times(1)).add(any(RowMutation.class));
   }
 
   @Test
@@ -150,7 +150,7 @@ public class TestBigtableBufferedMutator {
   }
   @Test
   public void testInvalidPut() throws Exception {
-    when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class)))
+    when(mockBulkMutation.add(any(RowMutation.class)))
         .thenReturn(Futures.<MutateRowResponse> immediateFailedFuture(new RuntimeException()));
     BigtableBufferedMutator underTest = createMutator(new Configuration(false));
     underTest.mutate(SIMPLE_PUT);
@@ -165,11 +165,11 @@ public class TestBigtableBufferedMutator {
   @Test
   public void testBulkSingleRequests() throws IOException, InterruptedException {
     Configuration config = new Configuration(false);
-    when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class))).thenReturn(future);
+    when(mockBulkMutation.add(any(RowMutation.class))).thenReturn(future);
     final BigtableBufferedMutator underTest = createMutator(config);
     underTest.mutate(SIMPLE_PUT);
     verify(mockAsyncExecutor, times(0)).mutateRowAsync(any(MutateRowRequest.class));
-    verify(mockBulkMutation, times(1)).add(any(MutateRowsRequest.Entry.class));
+    verify(mockBulkMutation, times(1)).add(any(RowMutation.class));
     underTest.flush();
     verify(mockBulkMutation, times(1)).flush();
     verify(mockAsyncExecutor, times(1)).flush();
@@ -178,13 +178,13 @@ public class TestBigtableBufferedMutator {
   @Test
   public void testBulkMultipleRequests() throws IOException, InterruptedException {
     Configuration config = new Configuration(false);
-    when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class))).thenReturn(future);
+    when(mockBulkMutation.add(any(RowMutation.class))).thenReturn(future);
     BigtableBufferedMutator underTest = createMutator(config);
     int count = 30;
     for (int i = 0; i < count; i++) {
       underTest.mutate(SIMPLE_PUT);
     }
-    verify(mockBulkMutation, times(count)).add(any(MutateRowsRequest.Entry.class));
+    verify(mockBulkMutation, times(count)).add(any(RowMutation.class));
     underTest.flush();
     verify(mockBulkMutation, times(1)).flush();
     verify(mockAsyncExecutor, times(1)).flush();

@@ -35,7 +35,7 @@ import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
-import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -65,7 +65,7 @@ public class BigtableBufferedMutatorHelper {
   private final HBaseRequestAdapter adapter;
   private final AsyncExecutor asyncExecutor;
 
-  private BulkMutation bulkMutation = null;
+  private BulkMutationWrapper bulkMutationWrapper = null;
 
   private BigtableOptions options;
 
@@ -75,10 +75,8 @@ public class BigtableBufferedMutatorHelper {
    * </p>
    * @param adapter Converts HBase objects to Bigtable protos
    * @param configuration For Additional configuration. TODO: move this to options
-   * @param session a {@link com.google.cloud.bigtable.grpc.BigtableSession} to get
-   *          {@link com.google.cloud.bigtable.config.BigtableOptions},
-   *          {@link com.google.cloud.bigtable.grpc.async.AsyncExecutor} and
-   *          {@link com.google.cloud.bigtable.grpc.async.BulkMutation} objects from starting the
+   * @param session a {@link BigtableSession} to get {@link BigtableOptions},
+   *          {@link AsyncExecutor} and {@link BulkMutationWrapper} objects from starting the
    *          async operations on the BigtableDataClient.
    */
   public BigtableBufferedMutatorHelper(
@@ -90,7 +88,7 @@ public class BigtableBufferedMutatorHelper {
     this.options = session.getOptions();
     this.asyncExecutor = session.createAsyncExecutor();
     BigtableTableName tableName = this.adapter.getBigtableTableName();
-    this.bulkMutation = session.createBulkMutation(tableName);
+    this.bulkMutationWrapper = session.createBulkMutationWrapper(tableName);
   }
 
   public void close() throws IOException {
@@ -106,9 +104,9 @@ public class BigtableBufferedMutatorHelper {
 
   public void flush() throws IOException {
     // If there is a bulk mutation in progress, then send it.
-    if (bulkMutation != null) {
+    if (bulkMutationWrapper != null) {
       try {
-        bulkMutation.flush();
+        bulkMutationWrapper.flush();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IOException("flush() was interrupted", e);
@@ -118,8 +116,8 @@ public class BigtableBufferedMutatorHelper {
   }
 
   public void sendUnsent() {
-    if (bulkMutation != null) {
-      bulkMutation.sendUnsent();
+    if (bulkMutationWrapper != null) {
+      bulkMutationWrapper.sendUnsent();
     }
   }
 
@@ -182,9 +180,9 @@ public class BigtableBufferedMutatorHelper {
         future = Futures.immediateFailedFuture(
           new IllegalArgumentException("Cannot perform a mutation on a null object."));
       } else if (mutation instanceof Put) {
-        future = bulkMutation.add(adapter.adaptEntry((Put) mutation));
+        future = bulkMutationWrapper.add(adapter.adaptEntry((Put) mutation));
       } else if (mutation instanceof Delete) {
-        future = bulkMutation.add(adapter.adaptEntry((Delete) mutation));
+        future = bulkMutationWrapper.add(adapter.adaptEntry((Delete) mutation));
       } else if (mutation instanceof Increment) {
         future = asyncExecutor.readModifyWriteRowAsync(adapter.adapt((Increment) mutation));
       } else if (mutation instanceof Append) {
@@ -209,6 +207,6 @@ public class BigtableBufferedMutatorHelper {
    */
   public boolean hasInflightRequests() {
     return this.asyncExecutor.hasInflightRequests()
-        || (bulkMutation != null && !bulkMutation.isFlushed());
+        || (bulkMutationWrapper != null && !bulkMutationWrapper.isFlushed());
   }
 }
