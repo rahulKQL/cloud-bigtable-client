@@ -15,6 +15,12 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutureToListenableFuture;
+import com.google.api.core.ApiFutures;
+import com.google.cloud.bigtable.core.IBigtableDataClient;
+import com.google.cloud.bigtable.core.IBulkMutation;
+import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -136,6 +142,8 @@ public class BatchExecutor {
 
   protected static class BulkOperation {
     private BulkMutation bulkMutation;
+    private IBulkMutation bulkWrapper;
+    protected IBigtableDataClient clientWrapper;
     private BulkRead bulkRead;
 
     protected BulkOperation(
@@ -143,6 +151,8 @@ public class BatchExecutor {
         BigtableTableName tableName) {
       this.bulkRead = session.createBulkRead(tableName);
       this.bulkMutation = session.createBulkMutation(tableName);
+      this.bulkWrapper = session.createBulkMutationWrapper(tableName);
+      this.clientWrapper = session.getClientWrapper();
     }
 
     protected void flush() {
@@ -193,34 +203,39 @@ public class BatchExecutor {
     RpcResultFutureCallback<T> futureCallback =
         new RpcResultFutureCallback<T>(row, callback, index, results, resultFuture);
     results[index] = null;
-    Futures.addCallback(issueAsyncRequest(bulkOperation, row),
+
+    //TODO(rahulKql): after review this will also be removed.
+    ListenableFuture<?> issueAsyncReq =
+        new ApiFutureToListenableFuture(issueAsyncRequest(bulkOperation, row));
+
+    Futures.addCallback(issueAsyncReq,
         futureCallback, MoreExecutors.directExecutor());
     return resultFuture;
   }
 
-  private ListenableFuture<?> issueAsyncRequest(BulkOperation bulkOperation, Row row) {
+  private ApiFuture<?> issueAsyncRequest(BulkOperation bulkOperation, Row row) {
     try {
       if (row instanceof Get) {
         return bulkOperation.bulkRead.add(requestAdapter.adapt((Get) row));
       } else if (row instanceof Put) {
-        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((Put) row));
+        return bulkOperation.bulkWrapper.add(requestAdapter.adaptEntry((Put) row));
       } else if (row instanceof Delete) {
-        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((Delete) row));
+        return bulkOperation.bulkWrapper.add(requestAdapter.adaptEntry((Delete) row));
       } else if (row instanceof Append) {
-        return asyncExecutor.readModifyWriteRowAsync(requestAdapter.adapt((Append) row));
+        return bulkOperation.clientWrapper.readModifyWriteRowAsync(requestAdapter.adapt((Append) row));
       } else if (row instanceof Increment) {
-        return asyncExecutor.readModifyWriteRowAsync(requestAdapter.adapt((Increment) row));
+        return bulkOperation.clientWrapper.readModifyWriteRowAsync(requestAdapter.adapt((Increment) row));
       } else if (row instanceof RowMutations) {
-        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((RowMutations) row));
+        return bulkOperation.bulkWrapper.add(requestAdapter.adaptEntry((RowMutations) row));
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return Futures.immediateFailedFuture(new IOException("Could not process the batch due to interrupt", e));
+      return ApiFutures.immediateFailedFuture(new IOException("Could not process the batch due to interrupt", e));
     } catch (Throwable e) {
-      return Futures.immediateFailedFuture(new IOException("Could not process the batch", e));
+      return ApiFutures.immediateFailedFuture(new IOException("Could not process the batch", e));
     }
     LOG.error("Encountered unknown action type %s", row.getClass());
-    return Futures.immediateFailedFuture(
+    return ApiFutures.immediateFailedFuture(
       new IllegalArgumentException("Encountered unknown action type: " + row.getClass()));
   }
 

@@ -29,6 +29,7 @@ import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
+import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.async.ResourceLimiter;
 import com.google.cloud.bigtable.grpc.async.ResourceLimiterStats;
@@ -348,6 +349,18 @@ public class BigtableSession implements Closeable {
         throttlingDataClient,
         BigtableSessionSharedThreadPools.getInstance().getRetryExecutor(),
         options.getBulkOptions());
+  }
+
+  /**
+   * <p>createBulkMutationWrapper.</p>
+   *
+   * a wrapper for {@link BulkMutation} to adapt to {@link RowMutation}.
+   *
+   * @param tableName a {@link BigtableTableName} object.
+   * @return a {@link BulkMutationWrapper} object.
+   */
+  public BulkMutationWrapper createBulkMutationWrapper(BigtableTableName tableName){
+    return new BulkMutationWrapper(createBulkMutation(tableName), options);
   }
 
   /**

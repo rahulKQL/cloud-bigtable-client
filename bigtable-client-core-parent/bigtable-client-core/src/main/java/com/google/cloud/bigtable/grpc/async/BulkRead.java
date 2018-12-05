@@ -15,6 +15,8 @@
  */
 package com.google.cloud.bigtable.grpc.async;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ListenableFutureToApiFuture;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -96,7 +98,7 @@ public class BulkRead {
    * @return a {@link com.google.common.util.concurrent.ListenableFuture} that will be populated
    *     with the {@link FlatRow} that corresponds to the request
    */
-  public ListenableFuture<FlatRow> add(ReadRowsRequest request) {
+  public ApiFuture<FlatRow> add(ReadRowsRequest request) {
     Preconditions.checkNotNull(request);
     Preconditions.checkArgument(request.getRows().getRowKeysCount() == 1);
     ByteString rowKey = request.getRows().getRowKeysList().get(0);
@@ -108,7 +110,7 @@ public class BulkRead {
       batch = new Batch(filter);
       batches.put(filter, batch);
     }
-    return batch.addKey(rowKey);
+    return new ListenableFutureToApiFuture<>(batch.addKey(rowKey));
   }
 
   /**

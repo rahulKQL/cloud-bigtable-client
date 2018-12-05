@@ -15,10 +15,10 @@
  */
 package com.google.cloud.bigtable.grpc.async;
 
-import com.google.api.core.AbstractApiFuture;
+import com.google.api.core.ApiFunction;
 import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
+import com.google.api.core.ListenableFutureToApiFuture;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.core.IBulkMutation;
@@ -27,9 +27,6 @@ import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class BulkMutationWrapper implements IBulkMutation {
 
@@ -45,7 +42,7 @@ public class BulkMutationWrapper implements IBulkMutation {
         );
   }
   @Override
-  public void flush() throws InterruptedException, TimeoutException {
+  public void flush() throws InterruptedException {
     delegate.flush();
   }
 
@@ -59,39 +56,19 @@ public class BulkMutationWrapper implements IBulkMutation {
     return delegate.isFlushed();
   }
 
-  @Override public ApiFuture<Void> add(RowMutation rowMutation) {
-    final ListenableFuture<MutateRowResponse> response =
+  @Override
+  public ApiFuture<Void> add(RowMutation rowMutation) {
+    final ListenableFuture<MutateRowResponse> listenableResponse =
         delegate.add(rowMutation.toProto(requestContext));
 
-    final ApiFuture<Void> future = new AbstractApiFuture<Void>() {
-      @Override public boolean cancel(boolean mayInterruptIfRunning) {
-        response.cancel(mayInterruptIfRunning);
-        return false;
-      }
+    ApiFuture<MutateRowResponse> response = new ListenableFutureToApiFuture<>(listenableResponse);
 
-      @Override public Void get(long timeout, TimeUnit unit)
-          throws InterruptedException, ExecutionException, TimeoutException {
-        response.get(timeout, unit);
-        return null;
-      }
-
-      @Override public Void get() throws InterruptedException, ExecutionException {
-        response.get();
-        return null;
-      }
-    };
-
-    ApiFutureCallback<Void> callback = new ApiFutureCallback<Void>() {
-      @Override public void onFailure(Throwable t) {
-        future.isCancelled();
-      }
-
-      @Override public void onSuccess(Void result) {
-        future.isDone();
-      }
-    };
-    ApiFutures.addCallback(future, callback, MoreExecutors.directExecutor());
-
-    return future;
+    return ApiFutures.transform(response, new ApiFunction<MutateRowResponse, Void>() {
+          @Override
+          public Void apply(MutateRowResponse input) {
+            return null;
+          }
+        },
+        MoreExecutors.directExecutor());
   }
 }
