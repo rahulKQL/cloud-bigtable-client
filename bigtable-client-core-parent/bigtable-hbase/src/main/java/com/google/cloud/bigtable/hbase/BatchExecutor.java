@@ -40,7 +40,7 @@ import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
-import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
+import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
@@ -135,19 +135,19 @@ public class BatchExecutor {
   }
 
   protected static class BulkOperation {
-    private BulkMutationWrapper bulkMutationWrapper;
+    private BulkMutation bulkMutation;
     private BulkRead bulkRead;
 
     protected BulkOperation(
         BigtableSession session,
         BigtableTableName tableName) {
       this.bulkRead = session.createBulkRead(tableName);
-      this.bulkMutationWrapper = session.createBulkMutationWrapper(tableName);
+      this.bulkMutation = session.createBulkMutation(tableName);
     }
 
     protected void flush() {
       // If there is a bulk mutation in progress, then send it.
-      bulkMutationWrapper.sendUnsent();
+      bulkMutation.sendUnsent();
       bulkRead.flush();
     }
   }
@@ -203,15 +203,15 @@ public class BatchExecutor {
       if (row instanceof Get) {
         return bulkOperation.bulkRead.add(requestAdapter.adapt((Get) row));
       } else if (row instanceof Put) {
-        return bulkOperation.bulkMutationWrapper.add(requestAdapter.adaptEntry((Put) row));
+        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((Put) row));
       } else if (row instanceof Delete) {
-        return bulkOperation.bulkMutationWrapper.add(requestAdapter.adaptEntry((Delete) row));
+        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((Delete) row));
       } else if (row instanceof Append) {
         return asyncExecutor.readModifyWriteRowAsync(requestAdapter.adapt((Append) row));
       } else if (row instanceof Increment) {
         return asyncExecutor.readModifyWriteRowAsync(requestAdapter.adapt((Increment) row));
       } else if (row instanceof RowMutations) {
-        return bulkOperation.bulkMutationWrapper.add(requestAdapter.adaptEntry((RowMutations) row));
+        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((RowMutations) row));
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

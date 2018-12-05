@@ -27,10 +27,8 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
-import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
-import com.google.cloud.bigtable.grpc.async.BulkMutationWrapper;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.async.ResourceLimiter;
 import com.google.cloud.bigtable.grpc.async.ResourceLimiterStats;
@@ -341,8 +339,8 @@ public class BigtableSession implements Closeable {
   /**
    * <p>createBulkMutation.</p>
    *
-   * @param tableName a {@link BigtableTableName} object.
-   * @return a {@link BulkMutation} object.
+   * @param tableName a {@link com.google.cloud.bigtable.grpc.BigtableTableName} object.
+   * @return a {@link com.google.cloud.bigtable.grpc.async.BulkMutation} object.
    */
   public BulkMutation createBulkMutation(BigtableTableName tableName) {
     return new BulkMutation(
@@ -350,18 +348,6 @@ public class BigtableSession implements Closeable {
         throttlingDataClient,
         BigtableSessionSharedThreadPools.getInstance().getRetryExecutor(),
         options.getBulkOptions());
-  }
-
-  /**
-   * <p>createBulkMutationWrapper.</p>
-   *
-   * a wrapper for {@link BulkMutation} to adapt to {@link RowMutation}.
-   *
-   * @param tableName a {@link BigtableTableName} object.
-   * @return a {@link BulkMutationWrapper} object.
-   */
-  public BulkMutationWrapper createBulkMutationWrapper(BigtableTableName tableName){
-    return new BulkMutationWrapper(createBulkMutation(tableName), options);
   }
 
   /**
