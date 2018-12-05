@@ -27,11 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.ManagedChannelProvider;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.Set;
 
 import java.util.concurrent.TimeUnit;
@@ -79,7 +75,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testProjectIdIsRequired() throws IOException, GeneralSecurityException {
+  public void testProjectIdIsRequired() throws IOException {
     BigtableOptions options = BigtableOptions.builder().build();
 
     expectException.expect(IllegalStateException.class);
@@ -88,7 +84,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testInstanceIdIsRequired() throws IOException, GeneralSecurityException {
+  public void testInstanceIdIsRequired() throws IOException {
     BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).build();
 
     expectException.expect(IllegalStateException.class);
@@ -97,7 +93,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testWhenRetriesAreDisabled() throws IOException, GeneralSecurityException {
+  public void testWhenRetriesAreDisabled() throws IOException {
     RetryOptions retryOptions = RetryOptions.builder().setEnableRetries(false).build();
     BigtableOptions options =
         BigtableOptions.builder()
@@ -110,7 +106,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testWithNullCredentials() throws IOException, GeneralSecurityException {
+  public void testWithNullCredentials() throws IOException {
     BigtableOptions options =
         BigtableOptions.builder()
             .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
@@ -121,7 +117,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testRetrySettings() throws IOException, GeneralSecurityException {
+  public void testRetrySettings() throws IOException {
     BigtableDataSettings settings =
         BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
@@ -157,7 +153,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testSettingWithRetries() throws IOException, GeneralSecurityException {
+  public void testSettingWithRetries() throws IOException {
     BigtableDataSettings settings =
         BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
@@ -168,7 +164,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testSettingWithoutRetries() throws IOException, GeneralSecurityException {
+  public void testSettingWithoutRetries() throws IOException {
     BigtableDataSettings settings =
         BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
@@ -179,7 +175,7 @@ public class TestBigtableDataSettingsFactory {
 
 
   @Test
-  public void testWhenBulkOptionIsDisabled() throws IOException, GeneralSecurityException {
+  public void testWhenBulkOptionIsDisabled() throws IOException {
     BulkOptions bulkOptions = BulkOptions.builder().setUseBulkApi(false).build();
     BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
         .setInstanceId(TEST_INSTANCE_ID).setBulkOptions(bulkOptions)
@@ -189,7 +185,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testBulkMutation() throws IOException, GeneralSecurityException {
+  public void testBulkMutation() throws IOException {
     BigtableOptions options =
         BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
             .build();
@@ -211,7 +207,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testReadModifyWrite() throws IOException, GeneralSecurityException {
+  public void testReadModifyWrite() throws IOException {
     BigtableDataSettings dataSettings =
         BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
     RetrySettings actualRetry = dataSettings.readModifyWriteRowSettings().getRetrySettings();
@@ -222,7 +218,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testCheckAndMutateRow() throws IOException, GeneralSecurityException {
+  public void testCheckAndMutateRow() throws IOException {
     BigtableDataSettings dataSettings =
         BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
     RetrySettings actualRetry = dataSettings.checkAndMutateRowSettings().getRetrySettings();
@@ -231,4 +227,6 @@ public class TestBigtableDataSettingsFactory {
         actualRetry.getTotalTimeout().getSeconds());
     Assert.assertEquals(1, actualRetry.getMaxAttempts());
   }
+
+
 }

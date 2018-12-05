@@ -21,7 +21,6 @@ import static org.threeten.bp.Duration.ofMillis;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.threeten.bp.Duration;
@@ -63,7 +62,7 @@ public class BigtableDataSettingsFactory {
    * @throws IOException if any.
    */
   public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options)
-      throws IOException, GeneralSecurityException {
+      throws IOException {
     checkState(options.getProjectId() != null, "Project ID is required");
     checkState(options.getInstanceId() != null, "Instance ID is required");
     checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
@@ -94,7 +93,8 @@ public class BigtableDataSettingsFactory {
     // TODO: implementation for channelCount or channelPerCPU
     ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
         .forAddress(options.getDataHost(), options.getPort())
-        .userAgent(options.getUserAgent());
+        .userAgent(options.getUserAgent())
+        .usePlaintext();
 
     if (options.usePlaintextNegotiation()) {
       channelBuilder.usePlaintext();
