@@ -12,6 +12,7 @@ import com.google.bigtable.admin.v2.Table;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
+import com.google.cloud.bigtable.admin.v2.stub.BigtableTableAdminStubSettings;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
@@ -74,19 +75,6 @@ public class TestUserAgentClient {
   @Before
   public void setUp() throws IOException {
 
-    List<ServerInterceptor> allInterceptors = ImmutableList.<ServerInterceptor>builder()
-        .add(recordServerCallInterceptor(serverCallCapture))
-        .add(recordRequestHeadersInterceptor(requestHeadersCapture))
-        .add()
-        .build();
-
-    String uniqueName = InProcessServerBuilder.generateName();
-    testServer = InProcessServerBuilder.forName(uniqueName)
-        .directExecutor() // directExecutor is fine for unit tests
-        .addService(ServerInterceptors.intercept(ServerServiceDefinition.builder("dataService").build(), allInterceptors))
-        .build().start();
-    channelz = new Channelz();
-    channelz.addServer((ServerImpl)testServer);
     BigtableOptions bigtableOptions =
         BigtableOptions.builder()
             .setDataHost("localhost")
@@ -94,34 +82,28 @@ public class TestUserAgentClient {
             .setProjectId(TEST_PROJECT_ID)
             .setInstanceId(TEST_INSTANCE_ID)
             .setUserAgent(TEST_USER_AGENT)
-            .setDataHost("127.0.0.1")
-            .setPort(testServer.getPort()).build();
+            .setDataHost("0.0.0.0")
+            .setPort(7777).build();
     dataSettings = BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
   }
 
-  @After
-  public void tearDown() throws Exception {
-    if (testServer != null) {
-      testServer.shutdownNow().awaitTermination();
-    }
-  }
 
   @Test
-  public void testAdminMethod() throws InterruptedException {
-    System.out.println(testServer);
-    Futures.addCallback(channelz.getChannel(0).getStats(), new FutureCallback<Channelz.ChannelStats>() {
-      @Override
-      public void onSuccess(@Nullable Channelz.ChannelStats channelStats) {
-        channelStats.
-      }
+  public void testAdminMethod() throws IOException {
+    BigtableTableAdminSettings.Builder tableAdminSettings = BigtableTableAdminSettings.newBuilder()
+        .setInstanceName(com.google.bigtable.admin.v2.InstanceName.of(TEST_PROJECT_ID, TEST_INSTANCE_ID));
+    tableAdminSettings.stubSettings()
+        .setCredentialsProvider(dataSettings.getCredentialsProvider())
+        .setTransportChannelProvider(dataSettings.getTransportChannelProvider());
+    BigtableTableAdminClient tableAdminClient =
+        BigtableTableAdminClient.create(tableAdminSettings.build());
+    // Create a test table that can be used in tests
+    tableAdminClient.createTable(
+        CreateTableRequest.of("fake-table")
+            .addFamily("cf")
+    );
 
-      @Override
-      public void onFailure(Throwable throwable) {
-
-      }
-    });
-    System.out.println(channelz);
   }
 
   /**
