@@ -15,10 +15,11 @@
  */
 package com.google.cloud.bigtable.beam;
 
+import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.APP_PROFILE_ID_KEY;
+
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +39,7 @@ import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
+import org.apache.hadoop.hbase.filter.Filter;
 
 /**
  * This class defines configuration that a Cloud Bigtable client needs to connect to a user's Cloud
@@ -276,22 +278,17 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
     @Override
     public CloudBigtableScanConfiguration build() {
       if (request == null) {
-        ReadHooks readHooks = new DefaultReadHooks();
         if (scan == null) {
           scan = new Scan();
         }
-        Query query = Query.create(tableId.get());
-        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
-        ValueProvider<String> appProfileIdValue =
-            additionalConfiguration.get(BigtableOptionsFactory.APP_PROFILE_ID_KEY);
-        String appProfileId = "";
-        if (appProfileIdValue != null) {
-          appProfileId = appProfileIdValue.get();
-        }
-        RequestContext requestContext = RequestContext
-            .create(InstanceName.of(projectId.get(), instanceId.get()), appProfileId);
-        readHooks.applyPreSendHook(query);
-        request = StaticValueProvider.of(query.toProto(requestContext));
+        request = new RequestWithScanValueProvider(scan.getStartRow(),
+            scan.getStopRow(),
+            scan.getMaxVersions(),
+            scan.getFilter(),
+            tableId,
+            projectId,
+            instanceId,
+            additionalConfiguration.get(APP_PROFILE_ID_KEY));
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId, request,
           additionalConfiguration);
@@ -455,5 +452,85 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
     super.populateDisplayData(builder);
     builder.add(
         DisplayData.item("readRowsRequest", getDisplayValue(request)).withLabel("ReadRowsRequest"));
+  }
+
+  private static class RequestWithScanValueProvider
+      implements ValueProvider<ReadRowsRequest>, Serializable {
+    private final byte[] start;
+    private final byte[] stop;
+    private final int maxVersion;
+    private final Filter filter;
+    private ValueProvider<String> tableId;
+    private ValueProvider<String> projectId;
+    private ValueProvider<String> instanceId;
+    private ValueProvider<String> appProfileId;
+    private ReadRowsRequest cachedRequest;
+
+    RequestWithScanValueProvider(
+        byte[] start,
+        byte[] stop,
+        int maxVersion,
+        Filter filter,
+        ValueProvider<String> tableId,
+        ValueProvider<String> projectId,
+        ValueProvider<String> instanceId,
+        ValueProvider<String> appProfileId
+    ){
+      this.start = start;
+      this.stop = stop;
+      this.maxVersion = maxVersion;
+      this.filter = filter;
+      this.tableId = tableId;
+      this.projectId = projectId;
+      this.instanceId = instanceId;
+      this.appProfileId = appProfileId;
+    }
+
+    @Override
+    public ReadRowsRequest get() {
+      if(cachedRequest == null ){
+        Scan scan = new Scan();
+        if (start != null && start.length != 0) {
+          scan.setStartRow(start);
+        }
+        if (stop != null && stop.length != 0) {
+          scan.setStopRow(stop);
+        }
+        if (maxVersion != 0) {
+          scan.setMaxVersions(maxVersion);
+        }
+        if(filter != null){
+          scan.setFilter(filter);
+        }
+        ReadHooks readHooks = new DefaultReadHooks();
+        Query query = Query.create(tableId.get());
+        Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
+
+        String appId = "";
+        if (appProfileId != null) {
+          appId = appProfileId.get();
+        }
+        RequestContext requestContext = RequestContext.create(InstanceName.of(projectId.get(),
+            instanceId.get()), appId);
+        readHooks.applyPreSendHook(query);
+        cachedRequest = query.toProto(requestContext);
+      }
+      return cachedRequest;
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return tableId.isAccessible()
+          && projectId.isAccessible()
+          && instanceId.isAccessible();
+    }
+
+    @Override
+    public String toString() {
+      if (isAccessible()) {
+        return String.valueOf(get());
+      }
+      return CloudBigtableConfiguration.VALUE_UNAVAILABLE;
+    }
   }
 }

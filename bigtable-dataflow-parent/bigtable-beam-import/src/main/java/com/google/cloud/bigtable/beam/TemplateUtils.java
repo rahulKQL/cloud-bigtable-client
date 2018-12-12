@@ -69,7 +69,7 @@ public class TemplateUtils {
     private final ValueProvider<String> filter;
     private ReadRowsRequest cachedRequest;
     private final ExportOptions options;
-    private final RequestContext requestContext;
+
 
     RequestValueProvider(ExportOptions options) {
       this.start = options.getBigtableStartRow();
@@ -77,10 +77,6 @@ public class TemplateUtils {
       this.maxVersion = options.getBigtableMaxVersions();
       this.filter = options.getBigtableFilter();
       this.options = options;
-      this.requestContext = RequestContext.create(
-              InstanceName.of(options.getBigtableProject().get(),
-                      options.getBigtableInstanceId().get()),
-              options.getBigtableAppProfileId().get());
     }
 
     @Override
@@ -103,6 +99,10 @@ public class TemplateUtils {
             throw new RuntimeException(e);
           }
         }
+        RequestContext requestContext = RequestContext.create(
+            InstanceName.of(options.getBigtableProject().get(),
+                options.getBigtableInstanceId().get()),
+            options.getBigtableAppProfileId().get());
 
         ReadHooks readHooks = new DefaultReadHooks();
         Query query = Query.create(options.getBigtableTableId().get());
