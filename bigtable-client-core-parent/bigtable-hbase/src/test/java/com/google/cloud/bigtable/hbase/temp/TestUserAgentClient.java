@@ -2,6 +2,8 @@ package com.google.cloud.bigtable.hbase.temp;
 
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.api.gax.httpjson.InstantiatingHttpJsonChannelProvider;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.bigtable.admin.v2.BigtableTableAdminGrpc;
 import com.google.bigtable.admin.v2.DeleteTableRequest;
@@ -45,7 +47,9 @@ import io.grpc.stub.ServerCalls;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,6 +59,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.threeten.bp.Duration;
 
 import static com.google.cloud.bigtable.hbase.TestBigtableOptionsFactory.TEST_INSTANCE_ID;
 import static com.google.cloud.bigtable.hbase.TestBigtableOptionsFactory.TEST_PROJECT_ID;
@@ -82,8 +87,7 @@ public class TestUserAgentClient {
             .setProjectId(TEST_PROJECT_ID)
             .setInstanceId(TEST_INSTANCE_ID)
             .setUserAgent(TEST_USER_AGENT)
-            .setDataHost("0.0.0.0")
-            .setPort(7777).build();
+            .setPort(8080).build();
     dataSettings = BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
   }
@@ -91,11 +95,33 @@ public class TestUserAgentClient {
 
   @Test
   public void testAdminMethod() throws IOException {
+    BigtableDataSettings.Builder setting2Builder = BigtableDataSettings.newBuilder();
+
+    setting2Builder.setEndpoint("localhost:8080");
+    setting2Builder.setInstanceName(com.google.cloud.bigtable.data.v2.models.InstanceName.of(TEST_PROJECT_ID, TEST_INSTANCE_ID));
+    ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
+        .forAddress("localhost", 8080)
+        .userAgent("SomeUSerAgent")
+        .usePlaintext();
+
+    GrpcTransportChannel channel =
+        GrpcTransportChannel.newBuilder().setManagedChannel(channelBuilder.build()).build();
+
+    Map<String, String> headers = new HashMap<>();
+    headers.put("cache-control", "no-cache");
+    headers.put("User-Agent", "BigtableOptions");
+    headers.put("rahul","wani");
+    FixedTransportChannelProvider ftp = FixedTransportChannelProvider.create(channel);
+
+
+    setting2Builder.setTransportChannelProvider(ftp);
+
+
     BigtableTableAdminSettings.Builder tableAdminSettings = BigtableTableAdminSettings.newBuilder()
         .setInstanceName(com.google.bigtable.admin.v2.InstanceName.of(TEST_PROJECT_ID, TEST_INSTANCE_ID));
     tableAdminSettings.stubSettings()
-        .setCredentialsProvider(dataSettings.getCredentialsProvider())
-        .setTransportChannelProvider(dataSettings.getTransportChannelProvider());
+        .setCredentialsProvider(setting2Builder.getCredentialsProvider())
+        .setTransportChannelProvider(setting2Builder.getTransportChannelProvider());
     BigtableTableAdminClient tableAdminClient =
         BigtableTableAdminClient.create(tableAdminSettings.build());
     // Create a test table that can be used in tests
