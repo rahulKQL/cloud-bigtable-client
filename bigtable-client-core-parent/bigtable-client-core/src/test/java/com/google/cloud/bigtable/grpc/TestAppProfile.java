@@ -240,6 +240,8 @@ public class TestAppProfile {
     @Override
     public void readRows(ReadRowsRequest request,
         StreamObserver<ReadRowsResponse> responseObserver) {
+
+      System.out.println("dsafjkasdlkadsjlksdajsdk");
       requests.add(request);
       responseObserver.onCompleted();
     }
