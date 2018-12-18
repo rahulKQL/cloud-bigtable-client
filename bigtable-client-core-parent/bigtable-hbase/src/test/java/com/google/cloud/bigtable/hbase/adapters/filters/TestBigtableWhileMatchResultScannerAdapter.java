@@ -23,9 +23,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
 import java.io.IOException;
 import java.util.Arrays;
 
+import java.util.Collections;
+import java.util.List;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.junit.Before;
@@ -48,10 +52,10 @@ import io.opencensus.trace.Span;
 public class TestBigtableWhileMatchResultScannerAdapter {
 
   @Mock
-  private ResponseAdapter<FlatRow, Result> mockRowAdapter;
+  private ResponseAdapter<Row, Result> mockRowAdapter;
 
   @Mock
-  com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> mockBigtableResultScanner;
+  com.google.cloud.bigtable.grpc.scanner.ResultScanner<Row> mockBigtableResultScanner;
 
   @Mock
   Span mockSpan;
@@ -78,7 +82,7 @@ public class TestBigtableWhileMatchResultScannerAdapter {
 
   @Test
   public void adapt_oneRow() throws IOException {
-    FlatRow row = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("key")).build();
+    Row row = Row.create(ByteString.copyFromUtf8("key"), Collections.EMPTY_LIST);
     when(mockBigtableResultScanner.next()).thenReturn(row);
     Result result = new Result();
     when(mockRowAdapter.adaptResponse(same(row))).thenReturn(result);
@@ -92,10 +96,11 @@ public class TestBigtableWhileMatchResultScannerAdapter {
 
   @Test
   public void adapt_oneRow_hasMatchingLabels() throws IOException {
-    FlatRow row = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("key"))
-        .addCell("", ByteString.EMPTY, 0, ByteString.EMPTY, Arrays.asList("a-in"))
-        .addCell("", ByteString.EMPTY, 0, ByteString.EMPTY, Arrays.asList("a-out"))
-        .build();
+    List<RowCell> rowCellList = Arrays.asList(
+        RowCell.create("", ByteString.EMPTY, 0, Arrays.asList("a-in"), ByteString.EMPTY),
+        RowCell.create("", ByteString.EMPTY, 0, Arrays.asList("a-out"), ByteString.EMPTY)
+    );
+    Row row = Row.create(ByteString.copyFromUtf8("key"), rowCellList);
     when(mockBigtableResultScanner.next()).thenReturn(row);
     Result result = new Result();
     when(mockRowAdapter.adaptResponse(same(row))).thenReturn(result);
@@ -109,9 +114,10 @@ public class TestBigtableWhileMatchResultScannerAdapter {
 
   @Test
   public void adapt_oneRow_hasNoMatchingLabels() throws IOException {
-    FlatRow row = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("key"))
-        .addCell("", ByteString.EMPTY, 0, ByteString.EMPTY, Arrays.asList("a-in"))
-        .build();
+    List<RowCell> rowCellList = Arrays.asList(
+        RowCell.create("", ByteString.EMPTY, 0, Arrays.asList("a-in"), ByteString.EMPTY)
+        );
+    Row row = Row.create(ByteString.copyFromUtf8("key"), rowCellList);
     when(mockBigtableResultScanner.next()).thenReturn(row);
 
     ResultScanner scanner = adapter.adapt(mockBigtableResultScanner, mockSpan);

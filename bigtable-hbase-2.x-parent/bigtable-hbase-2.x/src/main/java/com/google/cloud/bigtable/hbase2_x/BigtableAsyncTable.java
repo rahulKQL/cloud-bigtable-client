@@ -17,6 +17,7 @@ package com.google.cloud.bigtable.hbase2_x;
 
 import static java.util.stream.Collectors.toList;
 
+import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
@@ -85,6 +86,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
 
   private final BigtableAsyncConnection asyncConnection;
   private final BigtableDataClient client;
+  private final IBigtableDataClient clientWrapper;
   private final HBaseRequestAdapter hbaseAdapter;
   private final TableName tableName;
   private BatchExecutor batchExecutor;
@@ -96,6 +98,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
     this.asyncConnection = asyncConnection;
     BigtableSession session = asyncConnection.getSession();
     this.client = new BigtableDataClient(session.getDataClient());
+    this.clientWrapper = session.getClientWrapper();
     this.hbaseAdapter = hbaseAdapter;
     this.tableName = hbaseAdapter.getTableName();
     // Once the IBigtableDataClient interface is implemented this will be removed
@@ -412,8 +415,8 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
     LOG.trace("getScanner(Scan)");
     final Span span = TRACER.spanBuilder("BigtableTable.scan").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> scanner =
-          client.getClient().readFlatRows(hbaseAdapter.adapt(scan));
+      com.google.cloud.bigtable.grpc.scanner.ResultScanner<com.google.cloud.bigtable.data.v2.models.Row> scanner =
+          clientWrapper.readRows(hbaseAdapter.adapt(scan));
       if (AbstractBigtableTable.hasWhileMatchFilter(scan.getFilter())) {
         return Adapters.BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER.adapt(scanner, span);
       }

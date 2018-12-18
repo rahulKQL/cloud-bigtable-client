@@ -30,15 +30,17 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.BigtableDataClient;
 import com.google.cloud.bigtable.grpc.BigtableDataClientWrapper;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.protobuf.ByteString;
 
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CellUtil;
@@ -90,7 +92,7 @@ public class TestBigtableTable {
   private BigtableDataClientWrapper mockBigtableDataClient;
 
   @Mock
-  private ResultScanner<FlatRow> mockResultScanner;
+  private ResultScanner<Row> mockResultScanner;
 
   public AbstractBigtableTable table;
 
@@ -118,7 +120,7 @@ public class TestBigtableTable {
     when(mockSession.getOptions()).thenReturn(options);
     when(mockSession.getDataClient()).thenReturn(mockClient);
     when(mockSession.getClientWrapper()).thenReturn(mockBigtableDataClient);
-    when(mockClient.readFlatRows(isA(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    when(mockBigtableDataClient.readRows(isA(ReadRowsRequest.class))).thenReturn(mockResultScanner);
     table = new AbstractBigtableTable(mockConnection, hbaseAdapter){};
   }
 
@@ -208,15 +210,14 @@ public class TestBigtableTable {
   
   @Test
   public void getScanner_withBigtableResultScannerAdapter() throws IOException {
-    when(mockClient.readFlatRows(isA(ReadRowsRequest.class))).thenReturn(mockResultScanner);
+    when(mockBigtableDataClient.readRows(isA(ReadRowsRequest.class))).thenReturn(mockResultScanner);
     // A row with no matching label. In case of {@link BigtableResultScannerAdapter} the result is
     // non-null.
-    FlatRow row = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("row_key"))
-        .addCell("family_name", ByteString.copyFromUtf8("q_name"), 0, ByteString.EMPTY,
-          Arrays.asList("label-in"))
-        .addCell("family_name", ByteString.copyFromUtf8("q_name"), 0,
-          ByteString.copyFromUtf8("value"))
-        .build();
+    List<RowCell> rowCellList = Arrays.asList(
+        RowCell.create("family_name", ByteString.copyFromUtf8("q_name"), 0, Arrays.asList("label-in"), ByteString.EMPTY),
+        RowCell.create("family_name", ByteString.copyFromUtf8("q_name"), 0, Collections.EMPTY_LIST, ByteString.copyFromUtf8("value"))
+    );
+    Row row = Row.create(ByteString.copyFromUtf8("row_key"), rowCellList);
     when(mockResultScanner.next()).thenReturn(row);
 
     QualifierFilter filter =
@@ -231,7 +232,7 @@ public class TestBigtableTable {
     assertEquals(1, cells.size());
     assertEquals("value", new String(CellUtil.cloneValue(cells.get(0))));
     
-    verify(mockClient).readFlatRows(isA(ReadRowsRequest.class));
+    verify(mockBigtableDataClient).readRows(isA(ReadRowsRequest.class));
     verify(mockResultScanner).next();
   }
 
@@ -239,9 +240,11 @@ public class TestBigtableTable {
   public void getScanner_withBigtableWhileMatchResultScannerAdapter() throws IOException {
     // A row with no matching label. In case of {@link BigtableWhileMatchResultScannerAdapter} the
     // result is null.
-    FlatRow row = FlatRow.newBuilder().withRowKey(ByteString.copyFromUtf8("row_key"))
-        .addCell("", ByteString.EMPTY, 0, ByteString.EMPTY, Arrays.asList("label-in"))
-        .addCell("", ByteString.EMPTY, 0, ByteString.copyFromUtf8("value")).build();
+    List<RowCell> rowCellList = Arrays.asList(
+        RowCell.create("", ByteString.EMPTY, 0, Arrays.asList("label-in"), ByteString.EMPTY),
+        RowCell.create("", ByteString.EMPTY, 0, Collections.EMPTY_LIST, ByteString.copyFromUtf8("value"))
+    );
+    Row row = Row.create(ByteString.copyFromUtf8("row_key"), rowCellList);
     when(mockResultScanner.next()).thenReturn(row);
 
     QualifierFilter filter =
@@ -252,7 +255,7 @@ public class TestBigtableTable {
     org.apache.hadoop.hbase.client.ResultScanner resultScanner = table.getScanner(scan);
     assertNull(resultScanner.next());
 
-    verify(mockClient).readFlatRows(isA(ReadRowsRequest.class));
+    verify(mockBigtableDataClient).readRows(isA(ReadRowsRequest.class));
     verify(mockResultScanner).next();
   }
 }

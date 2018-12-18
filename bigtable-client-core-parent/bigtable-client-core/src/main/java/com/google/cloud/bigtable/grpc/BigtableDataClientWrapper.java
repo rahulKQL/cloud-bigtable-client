@@ -16,16 +16,27 @@
 package com.google.cloud.bigtable.grpc;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.rpc.ApiCallContext;
+import com.google.api.gax.rpc.ResponseObserver;
+import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.ServerStreamingCallable;
 import com.google.bigtable.v2.MutateRowRequest;
+import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.core.IBulkMutation;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.grpc.scanner.FlatRow;
+import com.google.cloud.bigtable.grpc.scanner.FlatRowConverter;
+import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.protobuf.ByteString;
+import java.io.IOException;
 
 /**
  * This class implements the {@link IBigtableDataClient} interface which provides access to google cloud
@@ -51,6 +62,39 @@ public class BigtableDataClientWrapper implements IBigtableDataClient {
     MutateRowRequest mutateRowRequest = rowMutation.toProto(requestContext);
     delegate.mutateRow(mutateRowRequest);
   }
+
+  @Override
+  public ResultScanner<Row> readRows(ReadRowsRequest request) {
+    final ResultScanner<FlatRow> rowResultScanner = delegate.readFlatRows(request);
+    ResultScanner<Row> response  = new ResultScanner<Row>() {
+      @Override
+      public Row next() throws IOException {
+        return FlatRowConverter.convertToModelRow(rowResultScanner.next());
+      }
+
+      @Override
+      public Row[] next(int count) throws IOException {
+        FlatRow[] flatRows = rowResultScanner.next(count);
+        Row[] rows = new Row[flatRows.length];
+        for (int i = 0; i < flatRows.length; i++) {
+          rows[i] = FlatRowConverter.convertToModelRow(flatRows[i]);
+        }
+        return rows;
+      }
+
+      @Override
+      public int available() {
+        return rowResultScanner.available();
+      }
+
+      @Override
+      public void close() throws IOException {
+        rowResultScanner.close();
+      }
+    };
+    return response;
+  }
+
 
   @Override
   public ApiFuture<Void> mutateRowAsync(RowMutation rowMutation) {

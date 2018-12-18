@@ -15,6 +15,8 @@
  */
 package com.google.cloud.bigtable.hbase.adapters;
 
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.hbase.adapters.read.ModelRowAdapter;
 import com.google.cloud.bigtable.hbase.adapters.read.RowRangeAdapter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Append;
@@ -40,6 +42,8 @@ public final class Adapters {
   public static final RowAdapter ROW_ADAPTER = new RowAdapter();
   /** Constant <code>FLAT_ROW_ADAPTER</code> */
   public static final FlatRowAdapter FLAT_ROW_ADAPTER = new FlatRowAdapter();
+  /** Constant <code>MODEL_ROW_ADAPTER</code> */
+  public static final ModelRowAdapter MODEL_ROW_ADAPTER = new ModelRowAdapter();
   /** Constant <code>APPEND_ADAPTER</code> */
   public static final AppendAdapter APPEND_ADAPTER = new AppendAdapter();
   /** Constant <code>INCREMENT_ADAPTER</code> */
@@ -55,12 +59,12 @@ public final class Adapters {
       FILTER_ADAPTER, ROW_RANGE_ADAPTER
   );
   /** Constant <code>BIGTABLE_RESULT_SCAN_ADAPTER</code> */
-  public static final BigtableResultScannerAdapter<FlatRow> BIGTABLE_RESULT_SCAN_ADAPTER =
-      new BigtableResultScannerAdapter<>(FLAT_ROW_ADAPTER);
+  public static final BigtableResultScannerAdapter<Row> BIGTABLE_RESULT_SCAN_ADAPTER =
+      new BigtableResultScannerAdapter<>(MODEL_ROW_ADAPTER);
   /** Constant <code>BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER</code> */
   public static final BigtableWhileMatchResultScannerAdapter
       BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER =
-      new BigtableWhileMatchResultScannerAdapter(FLAT_ROW_ADAPTER);
+      new BigtableWhileMatchResultScannerAdapter(MODEL_ROW_ADAPTER);
   /** Constant <code>GET_ADAPTER</code> */
   public static final GetAdapter GET_ADAPTER = new GetAdapter(SCAN_ADAPTER);
 

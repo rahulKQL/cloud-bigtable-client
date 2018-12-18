@@ -16,11 +16,18 @@
 package com.google.cloud.bigtable.core;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.rpc.ResponseObserver;
+import com.google.api.gax.rpc.ServerStream;
+import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
+import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 
+import com.google.cloud.bigtable.grpc.scanner.FlatRow;
+import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.protobuf.ByteString;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -92,4 +99,12 @@ public interface IBigtableDataClient {
    */
   Boolean checkAndMutateRow(ConditionalRowMutation conditionalRowMutation)
       throws ExecutionException, InterruptedException;
+
+  /**
+   * Perform a scan over {@link Row}s, in key order.
+   *
+   * @param request a {@link ReadRowsRequest} object.
+   * @return a {@link ResultScanner} object.
+   */
+  ResultScanner<Row> readRows(ReadRowsRequest request);
 }
