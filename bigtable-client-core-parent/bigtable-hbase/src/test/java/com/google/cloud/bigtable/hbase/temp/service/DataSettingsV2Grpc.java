@@ -1,4 +1,4 @@
-package com.google.cloud.bigtable.hbase.temp.exp;
+package com.google.cloud.bigtable.hbase.temp.service;
 
 
 import com.google.cloud.bigtable.data.v2.models.Query;

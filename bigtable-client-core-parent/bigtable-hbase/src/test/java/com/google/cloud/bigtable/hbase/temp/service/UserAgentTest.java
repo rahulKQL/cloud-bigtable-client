@@ -1,4 +1,4 @@
-package com.google.cloud.bigtable.hbase.temp.exp;
+package com.google.cloud.bigtable.hbase.temp.service;
 
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
@@ -48,21 +48,6 @@ public class UserAgentTest {
         .addService(fakeDataService)
         .build();
     server.start();
-
-
-//    BigtableOptions opts = BigtableOptions.builder()
-//        .setDataHost("localhost")
-//        .setAdminHost("locahost")
-//        .setPort(port)
-//        .setProjectId("fake-project")
-//        .setInstanceId("fake-instance")
-//        .setUserAgent("fake-agent")
-//        .setUsePlaintextNegotiation(true)
-//        .setCredentialOptions(CredentialOptions.nullCredential())
-//        .build();
-//    dataSettings = BigtableDataSettingsFactory.fromBigtableOptions(opts);
-
-
 
 
     ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
