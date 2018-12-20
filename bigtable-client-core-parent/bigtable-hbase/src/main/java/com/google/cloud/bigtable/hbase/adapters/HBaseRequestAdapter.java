@@ -20,6 +20,7 @@ import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.MutationApi;
+import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
@@ -134,12 +135,12 @@ public class HBaseRequestAdapter {
    * <p>adapt.</p>
    *
    * @param delete a {@link org.apache.hadoop.hbase.client.Delete} object.
-   * @return a {@link com.google.bigtable.v2.MutateRowRequest} object.
+   * @return a {@link RowMutation} object.
    */
-  public MutateRowRequest adapt(Delete delete) {
+  public RowMutation adapt(Delete delete) {
     RowMutation rowMutation = newRowMutationModel(delete.getRow());
     adapt(delete, rowMutation);
-    return rowMutation.toProto(requestContext);
+    return rowMutation;
   }
 
   /**
@@ -198,11 +199,10 @@ public class HBaseRequestAdapter {
    * @return a {@link com.google.bigtable.v2.ReadModifyWriteRowRequest} object.
    */
   public ReadModifyWriteRowRequest adapt(Append append) {
-    ReadModifyWriteRowRequest.Builder builder = ReadModifyWriteRowRequest.newBuilder();
-    //TODO: change APPEND_ADAPTER to adapt to {@link com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow} model
-    Adapters.APPEND_ADAPTER.adapt(append, builder);
-    builder.setTableName(getTableNameString());
-    return builder.build();
+    ReadModifyWriteRow readModifyWriteRow = ReadModifyWriteRow
+        .create(bigtableTableName.getTableId(), ByteString.copyFrom(append.getRow()));
+    Adapters.APPEND_ADAPTER.adapt(append, readModifyWriteRow);
+    return readModifyWriteRow.toProto(requestContext);
   }
 
   /**
@@ -212,23 +212,22 @@ public class HBaseRequestAdapter {
    * @return a {@link com.google.bigtable.v2.ReadModifyWriteRowRequest} object.
    */
   public ReadModifyWriteRowRequest adapt(Increment increment) {
-    ReadModifyWriteRowRequest.Builder builder = ReadModifyWriteRowRequest.newBuilder();
-    //TODO: change INCREMENT_ADAPTER to adapt to {@link com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow} model
-    Adapters.INCREMENT_ADAPTER.adapt(increment, builder);
-    builder.setTableName(getTableNameString());
-    return builder.build();
+    ReadModifyWriteRow readModifyWriteRow = ReadModifyWriteRow
+        .create(bigtableTableName.getTableId(), ByteString.copyFrom(increment.getRow()));
+    Adapters.INCREMENT_ADAPTER.adapt(increment, readModifyWriteRow);
+    return readModifyWriteRow.toProto(requestContext);
   }
 
   /**
    * <p>adapt.</p>
    *
    * @param put a {@link org.apache.hadoop.hbase.client.Put} object.
-   * @return a {@link com.google.bigtable.v2.MutateRowRequest} object.
+   * @return a {@link RowMutation} object.
    */
-  public MutateRowRequest adapt(Put put) {
+  public RowMutation adapt(Put put) {
     RowMutation rowMutation = newRowMutationModel(put.getRow());
     adapt(put, rowMutation);
-    return rowMutation.toProto(requestContext);
+    return rowMutation;
   }
 
   /**
@@ -257,12 +256,12 @@ public class HBaseRequestAdapter {
    * <p>adapt.</p>
    *
    * @param mutations a {@link org.apache.hadoop.hbase.client.RowMutations} object.
-   * @return a {@link com.google.bigtable.v2.MutateRowRequest} object.
+   * @return a {@link RowMutation} object.
    */
-  public MutateRowRequest adapt(RowMutations mutations) {
+  public RowMutation adapt(RowMutations mutations) {
     RowMutation rowMutation = newRowMutationModel(mutations.getRow());
     adapt(mutations, rowMutation);
-    return rowMutation.toProto(requestContext);
+    return rowMutation;
   }
 
   /**

@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigtable.grpc;
 
+import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import java.io.Serializable;
 
 import com.google.api.client.util.Strings;
@@ -119,6 +120,15 @@ public class BigtableInstanceName implements Serializable {
    */
   public String getInstanceName() {
     return instanceName;
+  }
+
+  public InstanceName toGcbInstanceName() {
+    return InstanceName.of(projectId, instanceId);
+  }
+
+  //TODO(rahulkql): Refactor once google-cloud-java/issues/4091 is resolved.
+  public com.google.bigtable.admin.v2.InstanceName toAdminInstanceName() {
+    return com.google.bigtable.admin.v2.InstanceName.of(projectId, instanceId);
   }
 
   public BigtableClusterName toClusterName(String clusterId) {
