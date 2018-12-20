@@ -121,7 +121,6 @@ public class TestBigtableVaneerSettingsFactory {
   @Test
   public void testWithActualTables() throws Exception{
     Assume.assumeFalse(endToEndTest);
-    TimeUnit.SECONDS.sleep(10);
     if (adminClient == null || dataClient == null) {
       initializeClients();
     }
