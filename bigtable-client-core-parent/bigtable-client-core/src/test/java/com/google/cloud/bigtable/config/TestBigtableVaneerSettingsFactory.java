@@ -1,0 +1,369 @@
+/*
+ * Copyright 2018 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.google.cloud.bigtable.config;
+
+import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.core.NoCredentialsProvider;
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
+import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.cloud.bigtable.data.v2.models.Mutation;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.threeten.bp.Duration;
+
+import static com.google.cloud.bigtable.config.CallOptionsConfig.LONG_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.CallOptionsConfig.SHORT_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_BACKOFF_MULTIPLIER;
+import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+@RunWith(JUnit4.class)
+public class TestBigtableVaneerSettingsFactory {
+
+  private static final String ACTUAL_PROJECT_ID = System.getProperty("test.client.project.id");
+  private static final String ACTUAL_INSTANCE_ID = System.getProperty("test.client.instance.id");
+
+  private static final String TEST_PROJECT_ID = "fakeProjectID";
+  private static final String TEST_INSTANCE_ID = "fakeInstanceID";
+  private static final String TEST_USER_AGENT = "sampleUserAgent";
+
+  private static final Set<Code> DEFAULT_RETRY_CODES =
+      ImmutableSet.of(Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE, Code.ABORTED);
+  private static final boolean endToEndTest =
+      Strings.isNullOrEmpty(ACTUAL_PROJECT_ID) && Strings.isNullOrEmpty(ACTUAL_INSTANCE_ID);
+
+
+  @Rule
+  public ExpectedException expectException = ExpectedException.none();
+
+  private BigtableOptions bigtableOptions = BigtableOptions.builder()
+      .setProjectId(TEST_PROJECT_ID)
+      .setInstanceId(TEST_INSTANCE_ID)
+      .setUserAgent(TEST_USER_AGENT)
+      .build();
+
+  private BigtableDataSettings dataSettings;
+  private BigtableTableAdminSettings adminSettings;
+  private BigtableDataClient dataClient;
+  private BigtableTableAdminClient adminClient;
+
+  @After
+  public void tearDown() throws Exception{
+    if(dataSettings != null &&
+        dataSettings.getTransportChannelProvider().getTransportChannel().isShutdown()){
+      dataSettings.getTransportChannelProvider().getTransportChannel().shutdownNow();
+    }
+    if(dataClient != null){
+      dataClient.close();
+    }
+    if(adminSettings != null &&
+        adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel().isShutdown()){
+      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel().shutdownNow();
+    }
+    if(adminClient != null){
+      adminClient.close();
+    }
+  }
+
+  public void initializeClients() throws IOException{
+    BigtableOptions bigtableOptions = BigtableOptions.builder()
+        .setProjectId(ACTUAL_PROJECT_ID)
+        .setInstanceId(ACTUAL_INSTANCE_ID)
+        .build();
+
+    dataSettings =BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
+    dataClient = BigtableDataClient.create(dataSettings);
+
+    adminSettings = BigtableVaneerSettingsFactory.createTableAdminClient(bigtableOptions);
+    adminClient = BigtableTableAdminClient.create(adminSettings);
+  }
+
+  //bigtable.instance=projects/grass-clump-479/instances/java-samples  --> Hello-Table-Bigtable
+  @Test
+  public void testWithActualTables() throws Exception{
+    Assume.assumeFalse(endToEndTest);
+    TimeUnit.SECONDS.sleep(10);
+    if (adminClient == null || dataClient == null) {
+      initializeClients();
+    }
+
+    final String TABLE_ID = "Test-clients-" + UUID.randomUUID().toString();
+    final String COLUMN_FAMILY_ID = "CF1";
+    final String TEST_QUALIFER = "qualifer1";
+    final String TEST_KEY = "settingsTest";
+    final String TEST_VALUE = "Test the BigtableDAtaclient";
+
+    if (adminClient.exists(TABLE_ID)) {
+      adminClient.deleteTable(TABLE_ID);
+    }
+    try {
+      CreateTableRequest createTableRequest =
+          CreateTableRequest.of(TABLE_ID).addFamily(COLUMN_FAMILY_ID);
+      adminClient.createTable(createTableRequest);
+
+      //Created table with vaneer TableAdminClient.
+      Assert.assertTrue(adminClient.exists(TABLE_ID));
+
+      Mutation mutation = Mutation.create();
+      mutation.setCell(COLUMN_FAMILY_ID, TEST_QUALIFER, TEST_VALUE);
+      RowMutation rowMutation = RowMutation.create(TABLE_ID, TEST_KEY, mutation);
+
+      //Write content to Bigtable using vaneer DataClient.
+      dataClient.mutateRow(rowMutation);
+
+      Query query = Query.create(TABLE_ID);
+      ServerStream<Row> rowStream = dataClient.readRows(query);
+      for (Row outputRow : rowStream) {
+
+        //Checking if the received output is KEY sent above.
+        Assert.assertEquals(TEST_KEY, outputRow.getKey());
+
+        for (RowCell cell : outputRow.getCells()) {
+
+          //Checking if the received output is KEY sent above.
+          Assert.assertEquals(TEST_VALUE, cell.getValue());
+        }
+      }
+
+      //Removing the table.
+      adminClient.deleteTable(TABLE_ID);
+    } finally {
+      //Removing Table in case of some exception occurred.
+      boolean tableExist = adminClient.exists(TABLE_ID);
+      if (tableExist) {
+        adminClient.deleteTable(TABLE_ID);
+      }
+      if(adminClient.exists("Hello-Table-Bigtable")){
+        System.out.println("Table is present");
+        adminClient.deleteTable("Hello-Table-Bigtable");
+        System.out.println("Removed table");
+      }
+      Assert.assertFalse(tableExist);
+    }
+  }
+
+  @Test
+  public void testProjectIdIsRequired() throws IOException {
+    BigtableOptions options = BigtableOptions.builder().build();
+
+    expectException.expect(IllegalStateException.class);
+    expectException.expectMessage("Project ID is required");
+    BigtableVaneerSettingsFactory.fromBigtableOptions(options);
+  }
+
+  @Test
+  public void testInstanceIdIsRequired() throws IOException {
+    BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).build();
+
+    expectException.expect(IllegalStateException.class);
+    expectException.expectMessage("Instance ID is required");
+    BigtableVaneerSettingsFactory.fromBigtableOptions(options);
+  }
+
+  @Test
+  public void testWhenRetriesAreDisabled() throws IOException {
+    RetryOptions retryOptions = RetryOptions.builder().setEnableRetries(false).build();
+    BigtableOptions options =
+        BigtableOptions.builder()
+            .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+            .setRetryOptions(retryOptions).build();
+
+    expectException.expect(IllegalStateException.class);
+    expectException.expectMessage("Disabling retries is not currently supported.");
+    BigtableVaneerSettingsFactory.fromBigtableOptions(options);
+  }
+
+  @Test
+  public void testWithNullCredentials() throws IOException {
+    BigtableOptions options =
+        BigtableOptions.builder()
+            .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+            .setCredentialOptions(CredentialOptions.nullCredential())
+            .setUserAgent(TEST_USER_AGENT).build();
+    BigtableDataSettings settings = BigtableVaneerSettingsFactory.fromBigtableOptions(options);
+    Assert.assertTrue(settings.getCredentialsProvider() instanceof NoCredentialsProvider);
+  }
+
+  @Test
+  public void testRetrySettings() throws IOException {
+    BigtableDataSettings settings =
+        BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
+
+    //Verifying RetrySettings for sampleRowKey, mutateRow & readRowSettings
+    verifyRetry(settings.sampleRowKeysSettings().getRetrySettings());
+    verifyRetry(settings.readRowsSettings().getRetrySettings());
+    verifyRetry(settings.mutateRowSettings().getRetrySettings());
+
+    //Verifying RetrySettings & RetryCodes of non-retryable methods.
+    verifyDisabledRetry(settings.bulkMutationsSettings().getRetrySettings());
+    verifyDisabledRetry(settings.readModifyWriteRowSettings().getRetrySettings());
+    verifyDisabledRetry(settings.checkAndMutateRowSettings().getRetrySettings());
+  }
+
+  private void verifyRetry(RetrySettings retrySettings) {
+    assertEquals(DEFAULT_INITIAL_BACKOFF_MILLIS, retrySettings.getInitialRetryDelay().toMillis());
+    assertEquals(DEFAULT_BACKOFF_MULTIPLIER,retrySettings.getRetryDelayMultiplier(), 0);
+    assertEquals(DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS, retrySettings.getMaxRetryDelay().toMillis());
+    assertEquals(DEFAULT_MAX_SCAN_TIMEOUT_RETRIES, retrySettings.getMaxAttempts());
+    assertEquals(SHORT_TIMEOUT_MS_DEFAULT, retrySettings.getInitialRpcTimeout().toMillis());
+    assertEquals(SHORT_TIMEOUT_MS_DEFAULT, retrySettings.getMaxRpcTimeout().toMillis());
+    assertEquals(LONG_TIMEOUT_MS_DEFAULT, retrySettings.getTotalTimeout().toMillis());
+  }
+
+  private void verifyDisabledRetry(RetrySettings ret) {
+    assertEquals(Duration.ZERO , ret.getInitialRetryDelay());
+    assertEquals(1.0 , ret.getRetryDelayMultiplier(), 0);
+    assertEquals(Duration.ZERO, ret.getMaxRetryDelay());
+    assertEquals(1, ret.getMaxAttempts());
+    assertEquals(SHORT_TIMEOUT_MS_DEFAULT, ret.getInitialRpcTimeout().toMillis());
+    assertEquals(SHORT_TIMEOUT_MS_DEFAULT, ret.getMaxRpcTimeout().toMillis());
+    assertEquals(SHORT_TIMEOUT_MS_DEFAULT, ret.getTotalTimeout().toMillis());
+  }
+
+  @Test
+  public void testSettingWithRetries() throws IOException {
+    BigtableDataSettings settings =
+        BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
+
+    assertEquals(DEFAULT_RETRY_CODES, settings.sampleRowKeysSettings().getRetryableCodes());
+    assertEquals(DEFAULT_RETRY_CODES, settings.readRowsSettings().getRetryableCodes());
+    assertEquals(ImmutableSet.of(Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE),
+        settings.mutateRowSettings().getRetryableCodes());
+  }
+
+  @Test
+  public void testSettingWithoutRetries() throws IOException {
+    BigtableDataSettings settings =
+        BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
+
+    assertTrue(settings.bulkMutationsSettings().getRetryableCodes().isEmpty());
+    assertTrue(settings.readModifyWriteRowSettings().getRetryableCodes().isEmpty());
+    assertTrue(settings.checkAndMutateRowSettings().getRetryableCodes().isEmpty());
+  }
+
+
+  @Test
+  public void testWhenBulkOptionIsDisabled() throws IOException {
+    BulkOptions bulkOptions = BulkOptions.builder().setUseBulkApi(false).build();
+    BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
+        .setInstanceId(TEST_INSTANCE_ID).setBulkOptions(bulkOptions)
+        .build();
+    BigtableDataSettings dataSettings = BigtableVaneerSettingsFactory.fromBigtableOptions(options);
+    assertFalse(dataSettings.bulkMutationsSettings().getBatchingSettings().getIsEnabled());
+  }
+
+  @Test
+  public void testBulkMutation() throws IOException {
+    BigtableOptions options =
+        BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+            .build();
+    BigtableDataSettings dataSettings = BigtableVaneerSettingsFactory.fromBigtableOptions(options);
+
+    BulkOptions bulkOptions = options.getBulkOptions();
+    BatchingSettings batchingSettings = dataSettings.bulkMutationsSettings().getBatchingSettings();
+    long outstandingElementCount =
+        bulkOptions.getMaxInflightRpcs() * bulkOptions.getBulkMaxRowKeyCount();
+    assertTrue(batchingSettings.getIsEnabled());
+    assertEquals(bulkOptions.getBulkMaxRequestSize(),
+        batchingSettings.getRequestByteThreshold().longValue());
+    assertEquals(bulkOptions.getBulkMaxRowKeyCount(),
+        batchingSettings.getElementCountThreshold().longValue());
+    assertEquals(bulkOptions.getMaxMemory(),
+        batchingSettings.getFlowControlSettings().getMaxOutstandingRequestBytes().longValue());
+    assertEquals(outstandingElementCount,
+        batchingSettings.getFlowControlSettings().getMaxOutstandingElementCount().longValue());
+  }
+
+  @Test
+  public void testReadModifyWrite() throws IOException {
+    BigtableDataSettings dataSettings =
+        BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
+    RetrySettings actualRetry = dataSettings.readModifyWriteRowSettings().getRetrySettings();
+    long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
+    Assert.assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
+        actualRetry.getTotalTimeout().getSeconds());
+    Assert.assertEquals(1, actualRetry.getMaxAttempts());
+  }
+
+  @Test
+  public void testCheckAndMutateRow() throws IOException {
+    BigtableDataSettings dataSettings =
+        BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
+    RetrySettings actualRetry = dataSettings.checkAndMutateRowSettings().getRetrySettings();
+    long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
+    Assert.assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
+        actualRetry.getTotalTimeout().getSeconds());
+    Assert.assertEquals(1, actualRetry.getMaxAttempts());
+  }
+
+  @Test
+  public void testTableAdminProjectIdIsRequired() throws IOException {
+    BigtableOptions options = BigtableOptions.builder().build();
+
+    expectException.expect(IllegalStateException.class);
+    expectException.expectMessage("Project ID is required");
+    BigtableVaneerSettingsFactory.createTableAdminClient(options);
+  }
+
+  @Test
+  public void testTableAdminInstanceIdIsRequired() throws IOException {
+    BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).build();
+
+    expectException.expect(IllegalStateException.class);
+    expectException.expectMessage("Instance ID is required");
+    BigtableVaneerSettingsFactory.createTableAdminClient(options);
+  }
+
+  @Test
+  public void testTableAdminWithNullCredentials() throws IOException {
+    BigtableOptions options =
+        BigtableOptions.builder()
+            .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+            .setCredentialOptions(CredentialOptions.nullCredential())
+            .setUserAgent(TEST_USER_AGENT).build();
+    BigtableTableAdminSettings settings =
+        BigtableVaneerSettingsFactory.createTableAdminClient(options);
+    Assert.assertTrue(
+        settings.getStubSettings().getCredentialsProvider() instanceof NoCredentialsProvider);
+  }
+
+}

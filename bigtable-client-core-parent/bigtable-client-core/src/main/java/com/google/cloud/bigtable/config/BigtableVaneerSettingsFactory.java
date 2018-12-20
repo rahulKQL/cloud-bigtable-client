@@ -13,17 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.bigtable.hbase;
-
-import static com.google.api.client.util.Preconditions.checkState;
-import static org.threeten.bp.Duration.ofMillis;
-
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-
-import org.apache.hadoop.conf.Configuration;
-import org.threeten.bp.Duration;
+package com.google.cloud.bigtable.config;
 
 import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.batching.FlowControlSettings;
@@ -33,26 +23,28 @@ import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
-import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.BulkOptions;
-import com.google.cloud.bigtable.config.CredentialFactory;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.config.Logger;
-import com.google.cloud.bigtable.config.RetryOptions;
+import com.google.auth.Credentials;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.stub.BigtableStubSettings;
-
 import io.grpc.ManagedChannelBuilder;
+import java.io.FileInputStream;
+import java.io.IOException;
+import org.threeten.bp.Duration;
+
+import static com.google.api.client.util.Preconditions.checkState;
+import static com.google.cloud.bigtable.config.CredentialOptions.getEnvJsonFile;
+import static org.threeten.bp.Duration.ofMillis;
 
 /**
- * Static methods to convert an instance of {@link Configuration} or {@link BigtableOptions} to a
- * {@link BigtableDataSettings} instance.
+ * Static methods to convert an instance of {@link BigtableOptions} to a
+ * {@link BigtableDataSettings} or {@link BigtableTableAdminSettings} instance .
  */
-public class BigtableDataSettingsFactory {
+public class BigtableVaneerSettingsFactory {
   /** Constant <code>LOG</code> */
-  private static final Logger LOG = new Logger(BigtableDataSettingsFactory.class);
+  private static final Logger LOG = new Logger(BigtableVaneerSettingsFactory.class);
 
   /**
    * To create an instance of {@link BigtableDataSettings} from {@link BigtableOptions}.
@@ -61,8 +53,7 @@ public class BigtableDataSettingsFactory {
    * @return a {@link BigtableDataSettings} object.
    * @throws IOException if any.
    */
-  public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options)
-      throws IOException {
+  public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options) throws IOException {
     checkState(options.getProjectId() != null, "Project ID is required");
     checkState(options.getInstanceId() != null, "Instance ID is required");
     checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
@@ -76,7 +67,7 @@ public class BigtableDataSettingsFactory {
 
     builder.setEndpoint(options.getDataHost() + ":" + options.getPort());
 
-    buildCredentialProviderSettings(builder, options.getCredentialOptions());
+    builder.setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
 
     buildBulkMutationsSettings(builder, options);
 
@@ -93,17 +84,52 @@ public class BigtableDataSettingsFactory {
     // TODO: implementation for channelCount or channelPerCPU
     ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
         .forAddress(options.getDataHost(), options.getPort())
-        .userAgent(options.getUserAgent())
-        .usePlaintext();
+        .userAgent(options.getUserAgent());
 
     if (options.usePlaintextNegotiation()) {
       channelBuilder.usePlaintext();
     }
 
     builder.setTransportChannelProvider(
-      FixedTransportChannelProvider.create(GrpcTransportChannel.create(channelBuilder.build())));
+        FixedTransportChannelProvider.create(GrpcTransportChannel.create(channelBuilder.build())));
 
     return builder.build();
+  }
+
+
+  /**
+   * To create an instance of {@link BigtableTableAdminSettings} from {@link BigtableOptions}.
+   *
+   * @param options a {@link BigtableOptions} object.
+   * @return a {@link BigtableTableAdminSettings} object.
+   * @throws IOException if any.
+   */
+  public static BigtableTableAdminSettings createTableAdminClient(BigtableOptions options)
+      throws IOException {
+    checkState(options.getProjectId() != null, "Project ID is required");
+    checkState(options.getInstanceId() != null, "Instance ID is required");
+
+    BigtableTableAdminSettings.Builder adminBuilder = BigtableTableAdminSettings.newBuilder();
+
+    adminBuilder.setInstanceName(com.google.bigtable.admin.v2.InstanceName
+        .of(options.getProjectId(), options.getInstanceId()));
+
+    //Overriding default credential with BigtableOptions's credentail.
+    adminBuilder.stubSettings()
+        .setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
+
+    //adapting to ManagedChannel to pass UserAgent
+    ManagedChannelBuilder channelBuilder =
+        ManagedChannelBuilder.forTarget(adminBuilder.stubSettings().getEndpoint())
+            .userAgent(options.getUserAgent());
+    if (options.usePlaintextNegotiation()) {
+      channelBuilder.usePlaintext();
+    }
+
+    adminBuilder.stubSettings().setTransportChannelProvider(
+        FixedTransportChannelProvider.create(GrpcTransportChannel.create(channelBuilder.build())));
+
+    return adminBuilder.build();
   }
 
   /**
@@ -126,8 +152,8 @@ public class BigtableDataSettingsFactory {
     FlowControlSettings.Builder flowControlBuilder = FlowControlSettings.newBuilder();
     if (maxInflightRpcs > 0) {
       flowControlBuilder
-        .setMaxOutstandingRequestBytes(bulkOptions.getMaxMemory())
-        .setMaxOutstandingElementCount(maxInflightRpcs * bulkMaxRowKeyCount);
+          .setMaxOutstandingRequestBytes(bulkOptions.getMaxMemory())
+          .setMaxOutstandingElementCount(maxInflightRpcs * bulkMaxRowKeyCount);
     }
 
     batchSettingsBuilder
@@ -138,9 +164,9 @@ public class BigtableDataSettingsFactory {
 
     // TODO: implement bulkMutationThrottling & bulkMutationRpcTargetMs, once available
     builder.bulkMutationsSettings()
-      .setBatchingSettings(batchSettingsBuilder.build())
-      .setSimpleTimeoutNoRetries(
-        ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()));
+        .setBatchingSettings(batchSettingsBuilder.build())
+        .setSimpleTimeoutNoRetries(
+            ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()));
   }
 
   /**
@@ -233,10 +259,9 @@ public class BigtableDataSettingsFactory {
         .setInitialRpcTimeout(shortRpcTimeout)
         .setMaxRpcTimeout(shortRpcTimeout)
         .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
-    
+
     if (retryOptions.allowRetriesWithoutTimestamp()) {
-      //TODO: add instruction to create unsafeMutation.
-      LOG.warn("Retries without Timestamp doesn't support");
+      LOG.warn("Retries without Timestamp does not support yet.");
     }
     return retryBuilder.build();
   }
@@ -244,32 +269,31 @@ public class BigtableDataSettingsFactory {
   /**
    * To create CredentialProvider based on CredentialType of BigtableOptions
    *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param credentialOptions a {@link CredentialOptions} object.
-   * @throws FileNotFoundException
-   * @throws IOException
+   * @throws IOException if any.
    */
-  private static void buildCredentialProviderSettings(Builder builder, CredentialOptions credentialOptions)
-      throws FileNotFoundException, IOException {
+  private static CredentialsProvider buildCredentialProvider(
+      CredentialOptions credentialOptions) throws IOException {
     CredentialsProvider credentialsProvider = NoCredentialsProvider.create();
 
     switch (credentialOptions.getCredentialType()) {
-    case DefaultCredentials:
-      credentialsProvider = BigtableStubSettings.defaultCredentialsProviderBuilder().build();
-      break;
-    case P12:
-    case SuppliedCredentials:
-    case SuppliedJson:
-      credentialsProvider = FixedCredentialsProvider.create(CredentialFactory
-          .getInputStreamCredential(new FileInputStream(CredentialOptions.getEnvJsonFile())));
-      break;
-    case None:
-      credentialsProvider = NoCredentialsProvider.create();
-      break;
-    default:
-      throw new IllegalStateException("Either service account or null credentials must be enabled");
+      case DefaultCredentials:
+        credentialsProvider = BigtableStubSettings.defaultCredentialsProviderBuilder().build();
+        break;
+      case P12:
+      case SuppliedCredentials:
+      case SuppliedJson:
+        Credentials credential =
+            CredentialFactory.getInputStreamCredential(new FileInputStream(getEnvJsonFile()));
+        credentialsProvider = FixedCredentialsProvider.create(credential);
+        break;
+      case None:
+        credentialsProvider = NoCredentialsProvider.create();
+        break;
+      default:
+        throw new IllegalStateException("Either service account or null credentials must be enabled");
     }
     LOG.debug("CredentialsProvider used is: %s", credentialsProvider);
-    builder.setCredentialsProvider(credentialsProvider);
+    return credentialsProvider;
   }
 }

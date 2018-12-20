@@ -28,9 +28,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.Set;
 
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -50,6 +50,8 @@ import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.common.collect.ImmutableSet;
+import org.threeten.bp.temporal.ChronoUnit;
+import org.threeten.bp.temporal.TemporalUnit;
 
 @RunWith(JUnit4.class)
 public class TestBigtableDataSettingsFactory {
@@ -66,12 +68,14 @@ public class TestBigtableDataSettingsFactory {
   @Before
   public void setup() {
     bigtableOptions = BigtableOptions.builder()
-        .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+        .setProjectId(TEST_PROJECT_ID)
+        .setInstanceId(TEST_INSTANCE_ID)
+        .setUserAgent(TEST_USER_AGENT)
         .build();
   }
 
   @Test
-  public void testProjectIdIsRequired() throws IOException, GeneralSecurityException {
+  public void testProjectIdIsRequired() throws IOException {
     BigtableOptions options = BigtableOptions.builder().build();
 
     expectException.expect(IllegalStateException.class);
@@ -80,7 +84,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testInstanceIdIsRequired() throws IOException, GeneralSecurityException {
+  public void testInstanceIdIsRequired() throws IOException {
     BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).build();
 
     expectException.expect(IllegalStateException.class);
@@ -89,7 +93,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testWhenRetriesAreDisabled() throws IOException, GeneralSecurityException {
+  public void testWhenRetriesAreDisabled() throws IOException {
     RetryOptions retryOptions = RetryOptions.builder().setEnableRetries(false).build();
     BigtableOptions options =
         BigtableOptions.builder()
@@ -102,7 +106,7 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testWithNullCredentials() throws IOException, GeneralSecurityException {
+  public void testWithNullCredentials() throws IOException {
     BigtableOptions options =
         BigtableOptions.builder()
             .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
@@ -113,8 +117,9 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testRetrySettings() throws IOException, GeneralSecurityException {
-    BigtableDataSettings settings = BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
+  public void testRetrySettings() throws IOException {
+    BigtableDataSettings settings =
+        BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
     //Verifying RetrySettings for sampleRowKey, mutateRow & readRowSettings
     verifyRetry(settings.sampleRowKeysSettings().getRetrySettings());
@@ -148,22 +153,29 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testRetryCodes() throws IOException, GeneralSecurityException {
-    BigtableDataSettings settings = BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
+  public void testSettingWithRetries() throws IOException {
+    BigtableDataSettings settings =
+        BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
     assertEquals(DEFAULT_RETRY_CODES, settings.sampleRowKeysSettings().getRetryableCodes());
     assertEquals(DEFAULT_RETRY_CODES, settings.readRowsSettings().getRetryableCodes());
-
     assertEquals(ImmutableSet.of(Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE),
         settings.mutateRowSettings().getRetryableCodes());
+  }
+
+  @Test
+  public void testSettingWithoutRetries() throws IOException {
+    BigtableDataSettings settings =
+        BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
 
     assertTrue(settings.bulkMutationsSettings().getRetryableCodes().isEmpty());
     assertTrue(settings.readModifyWriteRowSettings().getRetryableCodes().isEmpty());
     assertTrue(settings.checkAndMutateRowSettings().getRetryableCodes().isEmpty());
   }
 
+
   @Test
-  public void testWhenBulkOptionIsDisabled() throws IOException, GeneralSecurityException {
+  public void testWhenBulkOptionIsDisabled() throws IOException {
     BulkOptions bulkOptions = BulkOptions.builder().setUseBulkApi(false).build();
     BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
         .setInstanceId(TEST_INSTANCE_ID).setBulkOptions(bulkOptions)
@@ -173,22 +185,48 @@ public class TestBigtableDataSettingsFactory {
   }
 
   @Test
-  public void testBulkOption() throws IOException, GeneralSecurityException {
-    BigtableOptions options = BigtableOptions.builder().setProjectId(TEST_PROJECT_ID)
-        .setInstanceId(TEST_INSTANCE_ID).build();
+  public void testBulkMutation() throws IOException {
+    BigtableOptions options =
+        BigtableOptions.builder().setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
+            .build();
     BigtableDataSettings dataSettings = BigtableDataSettingsFactory.fromBigtableOptions(options);
 
     BulkOptions bulkOptions = options.getBulkOptions();
     BatchingSettings batchingSettings = dataSettings.bulkMutationsSettings().getBatchingSettings();
-    long outstandingElementCount = bulkOptions.getMaxInflightRpcs() * bulkOptions.getBulkMaxRowKeyCount();
+    long outstandingElementCount =
+        bulkOptions.getMaxInflightRpcs() * bulkOptions.getBulkMaxRowKeyCount();
     assertTrue(batchingSettings.getIsEnabled());
     assertEquals(bulkOptions.getBulkMaxRequestSize(),
-      batchingSettings.getRequestByteThreshold().longValue());
+        batchingSettings.getRequestByteThreshold().longValue());
     assertEquals(bulkOptions.getBulkMaxRowKeyCount(),
-      batchingSettings.getElementCountThreshold().longValue());
+        batchingSettings.getElementCountThreshold().longValue());
     assertEquals(bulkOptions.getMaxMemory(),
-      batchingSettings.getFlowControlSettings().getMaxOutstandingRequestBytes().longValue());
+        batchingSettings.getFlowControlSettings().getMaxOutstandingRequestBytes().longValue());
     assertEquals(outstandingElementCount,
-      batchingSettings.getFlowControlSettings().getMaxOutstandingElementCount().longValue());
+        batchingSettings.getFlowControlSettings().getMaxOutstandingElementCount().longValue());
   }
+
+  @Test
+  public void testReadModifyWrite() throws IOException {
+    BigtableDataSettings dataSettings =
+        BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
+    RetrySettings actualRetry = dataSettings.readModifyWriteRowSettings().getRetrySettings();
+    long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
+    Assert.assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
+        actualRetry.getTotalTimeout().getSeconds());
+    Assert.assertEquals(1, actualRetry.getMaxAttempts());
+  }
+
+  @Test
+  public void testCheckAndMutateRow() throws IOException {
+    BigtableDataSettings dataSettings =
+        BigtableDataSettingsFactory.fromBigtableOptions(bigtableOptions);
+    RetrySettings actualRetry = dataSettings.checkAndMutateRowSettings().getRetrySettings();
+    long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
+    Assert.assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
+        actualRetry.getTotalTimeout().getSeconds());
+    Assert.assertEquals(1, actualRetry.getMaxAttempts());
+  }
+
+
 }
