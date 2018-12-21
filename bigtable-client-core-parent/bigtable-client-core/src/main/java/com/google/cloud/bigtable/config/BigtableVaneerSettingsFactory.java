@@ -29,9 +29,12 @@ import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
 import com.google.cloud.bigtable.data.v2.models.InstanceName;
 import com.google.cloud.bigtable.data.v2.stub.BigtableStubSettings;
+import com.google.cloud.bigtable.grpc.BigtableSession;
+import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import org.threeten.bp.Duration;
 
 import static com.google.api.client.util.Preconditions.checkState;
@@ -81,17 +84,17 @@ public class BigtableVaneerSettingsFactory {
 
     buildSampleRowKeysSettings(builder, options);
 
-    // TODO: implementation for channelCount or channelPerCPU
-    ManagedChannelBuilder channelBuilder = ManagedChannelBuilder
-        .forAddress(options.getDataHost(), options.getPort())
-        .userAgent(options.getUserAgent());
-
-    if (options.usePlaintextNegotiation()) {
-      channelBuilder.usePlaintext();
+    ManagedChannel channel = null;
+    try{
+      channel = BigtableSession.createChannelPool(options.getDataHost(), options);
+    } catch(GeneralSecurityException ex){
+      LOG.error("Could not create Channel for host name ");
+      throw new RuntimeException("could not create channel", ex);
     }
 
     builder.setTransportChannelProvider(
-        FixedTransportChannelProvider.create(GrpcTransportChannel.create(channelBuilder.build())));
+        FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)));
+
 
     return builder.build();
   }
@@ -118,16 +121,16 @@ public class BigtableVaneerSettingsFactory {
     adminBuilder.stubSettings()
         .setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
 
-    //adapting to ManagedChannel to pass UserAgent
-    ManagedChannelBuilder channelBuilder =
-        ManagedChannelBuilder.forTarget(adminBuilder.stubSettings().getEndpoint())
-            .userAgent(options.getUserAgent());
-    if (options.usePlaintextNegotiation()) {
-      channelBuilder.usePlaintext();
+    ManagedChannel channel = null;
+    try{
+      channel = BigtableSession.createChannelPool(options.getAdminHost(), options);
+    } catch(GeneralSecurityException ex){
+      LOG.error("Could not create Channel for host name ");
+      throw new RuntimeException("could not create channel", ex);
     }
 
     adminBuilder.stubSettings().setTransportChannelProvider(
-        FixedTransportChannelProvider.create(GrpcTransportChannel.create(channelBuilder.build())));
+        FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)));
 
     return adminBuilder.build();
   }

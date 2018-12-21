@@ -88,16 +88,22 @@ public class TestBigtableVaneerSettingsFactory {
 
   @After
   public void tearDown() throws Exception{
-    if(dataSettings != null &&
-        dataSettings.getTransportChannelProvider().getTransportChannel().isShutdown()){
-      dataSettings.getTransportChannelProvider().getTransportChannel().shutdownNow();
+    if (dataSettings != null
+        && dataSettings.getTransportChannelProvider().getTransportChannel() != null) {
+      dataSettings.getTransportChannelProvider().getTransportChannel().shutdown();
+      dataSettings.getTransportChannelProvider().getTransportChannel()
+          .awaitTermination(20, TimeUnit.SECONDS);
     }
-    if(dataClient != null){
+    if (dataClient != null) {
       dataClient.close();
     }
-    if(adminSettings != null &&
-        adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel().isShutdown()){
-      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel().shutdownNow();
+    if (adminSettings != null
+        && adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
+        != null) {
+      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
+          .shutdown();
+      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
+          .awaitTermination(20, TimeUnit.SECONDS);
     }
     if(adminClient != null){
       adminClient.close();
