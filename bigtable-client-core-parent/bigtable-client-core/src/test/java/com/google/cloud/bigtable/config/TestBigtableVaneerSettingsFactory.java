@@ -32,6 +32,7 @@ import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
@@ -58,6 +59,8 @@ import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class TestBigtableVaneerSettingsFactory {
+
+  private static final Logger LOG = new Logger(TestBigtableVaneerSettingsFactory.class);
 
   private static final String ACTUAL_PROJECT_ID = System.getProperty("test.client.project.id");
   private static final String ACTUAL_INSTANCE_ID = System.getProperty("test.client.instance.id");
@@ -88,22 +91,8 @@ public class TestBigtableVaneerSettingsFactory {
 
   @After
   public void tearDown() throws Exception{
-    if (dataSettings != null
-        && dataSettings.getTransportChannelProvider().getTransportChannel() != null) {
-      dataSettings.getTransportChannelProvider().getTransportChannel().shutdown();
-      dataSettings.getTransportChannelProvider().getTransportChannel()
-          .awaitTermination(20, TimeUnit.SECONDS);
-    }
     if (dataClient != null) {
       dataClient.close();
-    }
-    if (adminSettings != null
-        && adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
-        != null) {
-      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
-          .shutdown();
-      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
-          .awaitTermination(20, TimeUnit.SECONDS);
     }
     if(adminClient != null){
       adminClient.close();
@@ -123,7 +112,20 @@ public class TestBigtableVaneerSettingsFactory {
     adminClient = BigtableTableAdminClient.create(adminSettings);
   }
 
-  //bigtable.instance=projects/grass-clump-479/instances/java-samples  --> Hello-Table-Bigtable
+  /**
+   * This test will only run if it found "test.client.project.id" & "test.client.project.id"
+   * VM arguments. Then it calls to an actual Bigtable Table & performs below checks:
+   * <pre>
+   *   <ul>
+   *     <li>Check if table with TABLE_ID is existed or not.</li>
+   *     <li>Creates a new table with TABLE_ID.</li>
+   *     <li>Mutates a single row with {@link RowMutation}.</li>
+   *     <li>Retrieves output in {@link ServerStream<Row>}.</li>
+   *     <li>Deletes table created with TABLE_ID.</li>
+   *   </ul>
+   * </pre>
+   * @throws Exception
+   */
   @Test
   public void testWithActualTables() throws Exception{
     Assume.assumeFalse(endToEndTest);
@@ -133,10 +135,12 @@ public class TestBigtableVaneerSettingsFactory {
 
     final String TABLE_ID = "Test-clients-" + UUID.randomUUID().toString();
     final String COLUMN_FAMILY_ID = "CF1";
-    final String TEST_QUALIFER = "qualifer1";
-    final String TEST_KEY = "settingsTest";
-    final String TEST_VALUE = "Test the BigtableDAtaclient";
+    final ByteString TEST_QUALIFER = ByteString.copyFromUtf8("qualifier1");
+    final ByteString TEST_KEY = ByteString.copyFromUtf8("bigtableDataSettingTest");
+    final ByteString TEST_VALUE = ByteString.copyFromUtf8("Test using BigtableDataclient & "
+        + "BigtableTableAdminClient");
 
+    //Checking if table already existed in the provided Instance.
     if (adminClient.exists(TABLE_ID)) {
       adminClient.deleteTable(TABLE_ID);
     }
@@ -146,7 +150,9 @@ public class TestBigtableVaneerSettingsFactory {
       adminClient.createTable(createTableRequest);
 
       //Created table with vaneer TableAdminClient.
-      Assert.assertTrue(adminClient.exists(TABLE_ID));
+      boolean tableExist = adminClient.exists(TABLE_ID);
+      LOG.info("Table successfully created : " + tableExist);
+      Assert.assertTrue(tableExist);
 
       Mutation mutation = Mutation.create();
       mutation.setCell(COLUMN_FAMILY_ID, TEST_QUALIFER, TEST_VALUE);
@@ -154,35 +160,34 @@ public class TestBigtableVaneerSettingsFactory {
 
       //Write content to Bigtable using vaneer DataClient.
       dataClient.mutateRow(rowMutation);
+      LOG.info("Successfully Mutated");
 
       Query query = Query.create(TABLE_ID);
       ServerStream<Row> rowStream = dataClient.readRows(query);
       for (Row outputRow : rowStream) {
 
-        //Checking if the received output is KEY sent above.
+        //Checking if the received output's KEY is same as above.
+        ByteString key = outputRow.getKey();
+        LOG.info("found key: " + key.toStringUtf8());
         Assert.assertEquals(TEST_KEY, outputRow.getKey());
 
         for (RowCell cell : outputRow.getCells()) {
-
           //Checking if the received output is KEY sent above.
-          Assert.assertEquals(TEST_VALUE, cell.getValue());
+          ByteString value = cell.getValue();
+          LOG.info("Value found: " + value.toStringUtf8());
+          Assert.assertEquals(TEST_VALUE, value);
         }
       }
 
       //Removing the table.
       adminClient.deleteTable(TABLE_ID);
     } finally {
-      //Removing Table in case of some exception occurred.
+      //Removing Table in case of some exception occurres.
       boolean tableExist = adminClient.exists(TABLE_ID);
       if (tableExist) {
         adminClient.deleteTable(TABLE_ID);
       }
-      if(adminClient.exists("Hello-Table-Bigtable")){
-        System.out.println("Table is present");
-        adminClient.deleteTable("Hello-Table-Bigtable");
-        System.out.println("Removed table");
-      }
-      Assert.assertFalse(tableExist);
+      Assert.assertFalse(adminClient.exists(TABLE_ID));
     }
   }
 

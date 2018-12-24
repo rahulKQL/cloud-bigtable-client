@@ -19,10 +19,16 @@ import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.GaxProperties;
 import com.google.api.gax.core.NoCredentialsProvider;
+import com.google.api.gax.grpc.GaxGrpcProperties;
+import com.google.api.gax.grpc.GrpcHeaderInterceptor;
 import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.ApiClientHeaderProvider;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
+import com.google.api.gax.rpc.HeaderProvider;
 import com.google.auth.Credentials;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
@@ -32,6 +38,7 @@ import com.google.cloud.bigtable.data.v2.stub.BigtableStubSettings;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.internal.GrpcUtil;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -85,20 +92,18 @@ public class BigtableVaneerSettingsFactory {
     buildSampleRowKeysSettings(builder, options);
 
     ManagedChannel channel = null;
-    try{
-      channel = BigtableSession.createChannelPool(options.getDataHost(), options);
-    } catch(GeneralSecurityException ex){
-      LOG.error("Could not create Channel for host name ");
-      throw new RuntimeException("could not create channel", ex);
-    }
+        try{
+          channel = BigtableSession.createChannelPool(options.getDataHost(), options, options.getChannelCount());
+        } catch(GeneralSecurityException ex){
+          LOG.error("Could not create Channel for host name ");
+          throw new RuntimeException("could not create channel", ex);
+        }
 
     builder.setTransportChannelProvider(
         FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)));
 
-
     return builder.build();
   }
-
 
   /**
    * To create an instance of {@link BigtableTableAdminSettings} from {@link BigtableOptions}.
@@ -117,14 +122,18 @@ public class BigtableVaneerSettingsFactory {
     adminBuilder.setInstanceName(com.google.bigtable.admin.v2.InstanceName
         .of(options.getProjectId(), options.getInstanceId()));
 
-    //Overriding default credential with BigtableOptions's credentail.
+    adminBuilder.stubSettings()
+        .setEndpoint(options.getAdminHost() + ":" + options.getPort());
+
+    //Overriding default credential with BigtableOptions's credential.
     adminBuilder.stubSettings()
         .setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
 
     ManagedChannel channel = null;
-    try{
-      channel = BigtableSession.createChannelPool(options.getAdminHost(), options);
-    } catch(GeneralSecurityException ex){
+    try {
+      channel = BigtableSession
+          .createChannelPool(options.getAdminHost(), options, options.getChannelCount());
+    } catch (GeneralSecurityException ex) {
       LOG.error("Could not create Channel for host name ");
       throw new RuntimeException("could not create channel", ex);
     }
