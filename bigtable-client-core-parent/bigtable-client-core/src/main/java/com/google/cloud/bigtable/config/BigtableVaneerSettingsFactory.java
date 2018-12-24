@@ -148,7 +148,7 @@ public class BigtableVaneerSettingsFactory {
     long maxInflightRpcs = bulkOptions.getMaxInflightRpcs();
 
     if (autoFlushMs > 0) {
-      batchSettingsBuilder.setDelayThreshold(Duration.ofMillis(autoFlushMs));
+      batchSettingsBuilder.setDelayThreshold(ofMillis(autoFlushMs));
     }
     FlowControlSettings.Builder flowControlBuilder = FlowControlSettings.newBuilder();
     if (maxInflightRpcs > 0) {

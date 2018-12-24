@@ -156,7 +156,7 @@ public class TestBigtableVaneerSettingsFactory {
       //Created table with vaneer TableAdminClient.
       boolean tableExist = adminClient.exists(TABLE_ID);
       LOG.info("Table successfully created : " + tableExist);
-      Assert.assertTrue(tableExist);
+      assertTrue(tableExist);
 
       Mutation mutation = Mutation.create();
       mutation.setCell(COLUMN_FAMILY_ID, TEST_QUALIFER, TEST_VALUE);
@@ -173,13 +173,13 @@ public class TestBigtableVaneerSettingsFactory {
         //Checking if the received output's KEY is same as above.
         ByteString key = outputRow.getKey();
         LOG.info("found key: " + key.toStringUtf8());
-        Assert.assertEquals(TEST_KEY, outputRow.getKey());
+        assertEquals(TEST_KEY, outputRow.getKey());
 
         for (RowCell cell : outputRow.getCells()) {
           //Checking if the received output is KEY sent above.
           ByteString value = cell.getValue();
           LOG.info("Value found: " + value.toStringUtf8());
-          Assert.assertEquals(TEST_VALUE, value);
+          assertEquals(TEST_VALUE, value);
         }
       }
 
@@ -191,7 +191,7 @@ public class TestBigtableVaneerSettingsFactory {
       if (tableExist) {
         adminClient.deleteTable(TABLE_ID);
       }
-      Assert.assertFalse(adminClient.exists(TABLE_ID));
+      assertFalse(adminClient.exists(TABLE_ID));
     }
   }
 
@@ -234,7 +234,7 @@ public class TestBigtableVaneerSettingsFactory {
             .setCredentialOptions(CredentialOptions.nullCredential())
             .setUserAgent(TEST_USER_AGENT).build();
     dataSettings = BigtableVaneerSettingsFactory.fromBigtableOptions(options);
-    Assert.assertTrue(dataSettings.getCredentialsProvider() instanceof NoCredentialsProvider);
+    assertTrue(dataSettings.getCredentialsProvider() instanceof NoCredentialsProvider);
   }
 
   @Test
@@ -330,9 +330,9 @@ public class TestBigtableVaneerSettingsFactory {
 
     RetrySettings actualRetry = dataSettings.readModifyWriteRowSettings().getRetrySettings();
     long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
-    Assert.assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
+    assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
         actualRetry.getTotalTimeout().getSeconds());
-    Assert.assertEquals(1, actualRetry.getMaxAttempts());
+    assertEquals(1, actualRetry.getMaxAttempts());
   }
 
   @Test
@@ -340,9 +340,9 @@ public class TestBigtableVaneerSettingsFactory {
     dataSettings = BigtableVaneerSettingsFactory.fromBigtableOptions(bigtableOptions);
     RetrySettings actualRetry = dataSettings.checkAndMutateRowSettings().getRetrySettings();
     long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
-    Assert.assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
+    assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
         actualRetry.getTotalTimeout().getSeconds());
-    Assert.assertEquals(1, actualRetry.getMaxAttempts());
+    assertEquals(1, actualRetry.getMaxAttempts());
   }
 
   @Test
@@ -374,7 +374,7 @@ public class TestBigtableVaneerSettingsFactory {
             .setPort(8080)
             .build();
     adminSettings = BigtableVaneerSettingsFactory.createTableAdminClient(options);
-    Assert.assertTrue(
+    assertTrue(
         adminSettings.getStubSettings().getCredentialsProvider() instanceof NoCredentialsProvider);
   }
 }
