@@ -94,23 +94,10 @@ public class TestBigtableVaneerSettingsFactory {
 
   @After
   public void tearDown() throws Exception{
-    if(dataSettings != null && dataSettings.getTransportChannelProvider() != null){
-      dataSettings.getTransportChannelProvider().getTransportChannel()
-          .shutdown();
-      dataSettings.getTransportChannelProvider().getTransportChannel()
-          .awaitTermination(5, TimeUnit.SECONDS);
-    }
     if (dataClient != null) {
       dataClient.close();
     }
 
-    if (adminSettings != null
-        && adminSettings.getStubSettings().getTransportChannelProvider() != null) {
-      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
-          .shutdown();
-      adminSettings.getStubSettings().getTransportChannelProvider().getTransportChannel()
-          .awaitTermination(5, TimeUnit.SECONDS);
-    }
     if(adminClient != null){
       adminClient.close();
     }
@@ -390,5 +377,4 @@ public class TestBigtableVaneerSettingsFactory {
     Assert.assertTrue(
         adminSettings.getStubSettings().getCredentialsProvider() instanceof NoCredentialsProvider);
   }
-
 }
