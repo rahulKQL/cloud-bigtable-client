@@ -56,7 +56,7 @@ public class BigtableVaneerSettingsFactory {
    * @return a {@link BigtableDataSettings} object.
    * @throws IOException if any.
    */
-  public static BigtableDataSettings fromBigtableOptions(final BigtableOptions options) throws IOException {
+  public static BigtableDataSettings createBigtableDataSettings(final BigtableOptions options) throws IOException {
     checkState(options.getProjectId() != null, "Project ID is required");
     checkState(options.getInstanceId() != null, "Instance ID is required");
     checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
@@ -105,7 +105,7 @@ public class BigtableVaneerSettingsFactory {
    * @return a {@link BigtableTableAdminSettings} object.
    * @throws IOException if any.
    */
-  public static BigtableTableAdminSettings createTableAdminClient(BigtableOptions options)
+  public static BigtableTableAdminSettings createTableAdminSettings(BigtableOptions options)
       throws IOException {
     checkState(options.getProjectId() != null, "Project ID is required");
     checkState(options.getInstanceId() != null, "Instance ID is required");
