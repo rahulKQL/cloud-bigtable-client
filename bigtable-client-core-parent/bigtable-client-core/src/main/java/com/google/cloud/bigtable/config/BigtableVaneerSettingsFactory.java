@@ -168,12 +168,9 @@ public class BigtableVaneerSettingsFactory {
 
     // TODO(rahulkql): implement bulkMutationThrottling & bulkMutationRpcTargetMs, once available
     builder.bulkMutationsSettings()
-        .setBatchingSettings(batchSettingsBuilder.build());
-
-    if (shortRpcTimeoutMs != SHORT_TIMEOUT_MS_DEFAULT) {
-      builder.bulkMutationsSettings()
-          .setSimpleTimeoutNoRetries(ofMillis(shortRpcTimeoutMs));
-    }
+        .setBatchingSettings(batchSettingsBuilder.build())
+        .setSimpleTimeoutNoRetries(
+            ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()));
   }
 
   /**
