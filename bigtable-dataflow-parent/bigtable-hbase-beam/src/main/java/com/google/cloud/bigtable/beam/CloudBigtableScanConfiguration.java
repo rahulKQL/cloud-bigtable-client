@@ -38,6 +38,9 @@ import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
+import org.apache.hadoop.hbase.util.Strings;
+
+import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.APP_PROFILE_ID_KEY;
 
 /**
  * This class defines configuration that a Cloud Bigtable client needs to connect to a user's Cloud
@@ -47,6 +50,10 @@ import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 public class CloudBigtableScanConfiguration extends CloudBigtableTableConfiguration {
 
   private static final long serialVersionUID = 2435897354284600685L;
+  protected static final String MARKER_ID = "";
+  protected static final String MARKER_PROJECT_ID = "projectId";
+  protected static final String MARKER_INSTANCE_ID = "instanceId";
+  protected static final String MARKER_APP_PROFILE_ID = "appProfileId";
 
   /**
    * Converts a {@link CloudBigtableTableConfiguration} object to a
@@ -280,18 +287,16 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         if (scan == null) {
           scan = new Scan();
         }
-        Query query = Query.create(tableId.get());
+        Query query = Query.create(MARKER_ID);
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
-        ValueProvider<String> appProfileIdValue =
-            additionalConfiguration.get(BigtableOptionsFactory.APP_PROFILE_ID_KEY);
-        String appProfileId = "";
-        if (appProfileIdValue != null) {
-          appProfileId = appProfileIdValue.get();
-        }
         RequestContext requestContext = RequestContext
-            .create(InstanceName.of(projectId.get(), instanceId.get()), appProfileId);
+            .create(InstanceName.of(MARKER_PROJECT_ID, MARKER_INSTANCE_ID), MARKER_APP_PROFILE_ID);
         readHooks.applyPreSendHook(query);
-        request = StaticValueProvider.of(query.toProto(requestContext));
+        ReadRowsRequest.Builder builder  =
+            ReadRowsRequest.newBuilder(query.toProto(requestContext))
+                .setTableName(MARKER_ID)
+                .setAppProfileId(MARKER_ID);
+        request = StaticValueProvider.of(builder.build());
       }
       return new CloudBigtableScanConfiguration(projectId, instanceId, tableId, request,
           additionalConfiguration);
@@ -311,16 +316,19 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
     private final ValueProvider<String> tableId;
     private final ValueProvider<ReadRowsRequest> request;
     private ReadRowsRequest cachedRequest;
+    private Map<String, ValueProvider<String>> additionalConfiguration;
 
     RequestWithTableNameValueProvider(
         ValueProvider<String> projectId,
         ValueProvider<String> instanceId,
         ValueProvider<String> tableId,
-        ValueProvider<ReadRowsRequest> request) {
+        ValueProvider<ReadRowsRequest> request,
+        Map<String, ValueProvider<String>> additionalConfiguration) {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
       this.request = request;
+      this.additionalConfiguration = additionalConfiguration;
     }
 
     @Override
@@ -329,8 +337,15 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
         if (request.get().getTableName().isEmpty()) {
           BigtableInstanceName bigtableInstanceName =
               new BigtableInstanceName(projectId.get(), instanceId.get());
-          String fullTableName = bigtableInstanceName.toTableNameStr(tableId.get());
-          cachedRequest = request.get().toBuilder().setTableName(fullTableName).build();
+
+          ReadRowsRequest.Builder builder = request.get().toBuilder();
+
+          builder.setTableName(bigtableInstanceName.toTableNameStr(tableId.get()));
+          if (additionalConfiguration.containsKey(APP_PROFILE_ID_KEY) && additionalConfiguration.get(APP_PROFILE_ID_KEY).get() != null) {
+            builder.setAppProfileId(additionalConfiguration.get(APP_PROFILE_ID_KEY).get());
+          }
+
+          cachedRequest = builder.build();
         } else {
           cachedRequest = request.get();
         }
@@ -371,7 +386,7 @@ public class CloudBigtableScanConfiguration extends CloudBigtableTableConfigurat
       ValueProvider<ReadRowsRequest> request,
       Map<String, ValueProvider<String>> additionalConfiguration) {
     super(projectId, instanceId, tableId, additionalConfiguration);
-    this.request = new RequestWithTableNameValueProvider(projectId, instanceId, tableId, request);
+    this.request = new RequestWithTableNameValueProvider(projectId, instanceId, tableId, request, additionalConfiguration);
   }
 
   /**

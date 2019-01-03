@@ -15,6 +15,11 @@
  */
 package com.google.cloud.bigtable.beam;
 
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_APP_PROFILE_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_INSTANCE_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_PROJECT_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_ID;
+
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.InstanceName;
@@ -68,19 +73,12 @@ public class TemplateUtils {
     private final ValueProvider<Integer> maxVersion;
     private final ValueProvider<String> filter;
     private ReadRowsRequest cachedRequest;
-    private final ExportOptions options;
-    private final RequestContext requestContext;
 
     RequestValueProvider(ExportOptions options) {
       this.start = options.getBigtableStartRow();
       this.stop = options.getBigtableStopRow();
       this.maxVersion = options.getBigtableMaxVersions();
       this.filter = options.getBigtableFilter();
-      this.options = options;
-      this.requestContext = RequestContext.create(
-              InstanceName.of(options.getBigtableProject().get(),
-                      options.getBigtableInstanceId().get()),
-              options.getBigtableAppProfileId().get());
     }
 
     @Override
@@ -105,10 +103,15 @@ public class TemplateUtils {
         }
 
         ReadHooks readHooks = new DefaultReadHooks();
-        Query query = Query.create(options.getBigtableTableId().get());
+        Query query = Query.create(MARKER_ID);
+        RequestContext requestContext = RequestContext
+            .create(InstanceName.of(MARKER_PROJECT_ID, MARKER_INSTANCE_ID), MARKER_APP_PROFILE_ID);
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
         readHooks.applyPreSendHook(query);
-        cachedRequest = query.toProto(requestContext);
+        cachedRequest = ReadRowsRequest.newBuilder(query.toProto(requestContext))
+                .setTableName(MARKER_ID)
+                .setAppProfileId(MARKER_ID)
+                .build();
       }
       return cachedRequest;
     }

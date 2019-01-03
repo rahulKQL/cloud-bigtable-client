@@ -15,6 +15,10 @@
  */
 package com.google.cloud.bigtable.beam;
 
+import com.google.bigtable.repackaged.com.google.bigtable.v2.RowRange;
+import com.google.bigtable.repackaged.com.google.bigtable.v2.RowSet;
+import com.google.bigtable.repackaged.com.google.cloud.bigtable.grpc.BigtableInstanceName;
+import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.hadoop.hbase.client.Scan;
@@ -137,5 +141,36 @@ public class CloudBigtableScanConfigurationTest {
             .withRequest(StaticValueProvider.of(updatedRequest))
             .build();
     Assert.assertEquals(withRegularParameters, withRuntimeParameters);
+  }
+
+  @Test
+  public void testReadRowsRequest(){
+    CloudBigtableScanConfiguration withConfiguration =
+        new CloudBigtableScanConfiguration.Builder()
+            .withKeys(START_ROW, STOP_ROW)
+            .withProjectId(PROJECT)
+            .withInstanceId(INSTANCE)
+            .withAppProfileId("app-profile")
+            .withTableId(TABLE)
+            .build();
+
+    BigtableInstanceName instanceName = new BigtableInstanceName(PROJECT, INSTANCE);
+    ReadRowsRequest request =
+        ReadRowsRequest.newBuilder()
+            .setTableName(instanceName.toTableNameStr(TABLE))
+            .setAppProfileId("app-profile")
+            .setRows(RowSet.newBuilder()
+                .addRowRanges(
+                    RowRange.newBuilder()
+                        .setStartKeyClosed(ByteString.copyFrom(START_ROW))
+                        .setEndKeyOpen(ByteString.copyFrom(STOP_ROW))))
+            .build();
+    CloudBigtableScanConfiguration withRequest = new CloudBigtableScanConfiguration.Builder()
+        .withRequest(request)
+        .withProjectId(PROJECT)
+        .withInstanceId(INSTANCE)
+        .withTableId(TABLE)
+        .build();
+    Assert.assertEquals(withRequest.getRequest(), withConfiguration.getRequest());
   }
 }
