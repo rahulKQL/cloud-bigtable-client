@@ -15,10 +15,10 @@
  */
 package com.google.cloud.bigtable.beam;
 
-import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_APP_PROFILE_ID;
-import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_INSTANCE_ID;
-import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_PROJECT_ID;
-import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.MARKER_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.PLACEHOLDER_APP_PROFILE_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.PLACEHOLDER_INSTANCE_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.PLACEHOLDER_PROJECT_ID;
+import static com.google.cloud.bigtable.beam.CloudBigtableScanConfiguration.PLACEHOLDER_TABLE_ID;
 
 import com.google.bigtable.repackaged.com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.internal.RequestContext;
@@ -103,15 +103,14 @@ public class TemplateUtils {
         }
 
         ReadHooks readHooks = new DefaultReadHooks();
-        Query query = Query.create(MARKER_ID);
+        Query query = Query.create(PLACEHOLDER_TABLE_ID);
         RequestContext requestContext = RequestContext
-            .create(InstanceName.of(MARKER_PROJECT_ID, MARKER_INSTANCE_ID), MARKER_APP_PROFILE_ID);
+            .create(InstanceName.of(PLACEHOLDER_PROJECT_ID, PLACEHOLDER_INSTANCE_ID),
+                PLACEHOLDER_APP_PROFILE_ID);
         Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
         readHooks.applyPreSendHook(query);
-        cachedRequest = ReadRowsRequest.newBuilder(query.toProto(requestContext))
-                .setTableName(MARKER_ID)
-                .setAppProfileId(MARKER_ID)
-                .build();
+
+        cachedRequest = query.toProto(requestContext);
       }
       return cachedRequest;
     }
