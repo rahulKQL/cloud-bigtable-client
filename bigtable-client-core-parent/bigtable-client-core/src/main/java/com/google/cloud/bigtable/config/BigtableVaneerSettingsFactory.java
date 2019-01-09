@@ -28,16 +28,14 @@ import com.google.auth.Credentials;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
-import com.google.cloud.bigtable.data.v2.models.InstanceName;
-import com.google.cloud.bigtable.data.v2.stub.BigtableStubSettings;
 import io.grpc.internal.GrpcUtil;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
+import javax.annotation.Nonnull;
 import org.threeten.bp.Duration;
 
 import static com.google.api.client.util.Preconditions.checkState;
 import static com.google.cloud.bigtable.config.CallOptionsConfig.SHORT_TIMEOUT_MS_DEFAULT;
-import static com.google.cloud.bigtable.config.CredentialOptions.getEnvJsonFile;
 import static org.threeten.bp.Duration.ofMillis;
 
 /**
@@ -56,17 +54,16 @@ public class BigtableVaneerSettingsFactory {
    * @return a {@link BigtableDataSettings} object.
    * @throws IOException if any.
    */
-  public static BigtableDataSettings createBigtableDataSettings(final BigtableOptions options) throws IOException {
+  public static BigtableDataSettings createBigtableDataSettings(@Nonnull final BigtableOptions options) throws IOException {
     checkState(options.getProjectId() != null, "Project ID is required");
     checkState(options.getInstanceId() != null, "Instance ID is required");
     checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
 
-    BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
-    String endpoint = options.getDataHost() + ":" + options.getPort();
+    final BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
+    final String endpoint = options.getDataHost() + ":" + options.getPort();
 
-    InstanceName instanceName = InstanceName.newBuilder().setProject(options.getProjectId())
-        .setInstance(options.getInstanceId()).build();
-    builder.setInstanceName(instanceName);
+    builder.setProjectId(options.getProjectId());
+    builder.setInstanceId(options.getInstanceId());
     builder.setAppProfileId(options.getAppProfileId());
 
     builder.setEndpoint(endpoint);
@@ -85,7 +82,7 @@ public class BigtableVaneerSettingsFactory {
 
     buildSampleRowKeysSettings(builder, options);
 
-    String userAgent = BigtableVersionInfo.CORE_UESR_AGENT + "," + options.getUserAgent();
+    String userAgent = BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent();
     HeaderProvider headers = FixedHeaderProvider.create(GrpcUtil.USER_AGENT_KEY.name(), userAgent);
 
     builder.setTransportChannelProvider(
@@ -105,24 +102,24 @@ public class BigtableVaneerSettingsFactory {
    * @return a {@link BigtableTableAdminSettings} object.
    * @throws IOException if any.
    */
-  public static BigtableTableAdminSettings createTableAdminSettings(BigtableOptions options)
+  public static BigtableTableAdminSettings createTableAdminSettings(@Nonnull final BigtableOptions options)
       throws IOException {
     checkState(options.getProjectId() != null, "Project ID is required");
     checkState(options.getInstanceId() != null, "Instance ID is required");
 
-    BigtableTableAdminSettings.Builder adminBuilder = BigtableTableAdminSettings.newBuilder();
+    final BigtableTableAdminSettings.Builder adminBuilder = BigtableTableAdminSettings.newBuilder();
 
-    adminBuilder.setInstanceName(com.google.bigtable.admin.v2.InstanceName
-        .of(options.getProjectId(), options.getInstanceId()));
+    adminBuilder.setProjectId(options.getProjectId());
+    adminBuilder.setInstanceId(options.getInstanceId());
 
-    String endpoint = options.getAdminHost() + ":" + options.getPort();
+    final String endpoint = options.getAdminHost() + ":" + options.getPort();
     adminBuilder.stubSettings().setEndpoint(endpoint);
 
     //Overriding default credential with BigtableOptions's credential.
     adminBuilder.stubSettings()
         .setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
 
-    String userAgent = BigtableVersionInfo.CORE_UESR_AGENT + "," + options.getUserAgent();
+    String userAgent = BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent();
     HeaderProvider headers = FixedHeaderProvider.create(GrpcUtil.USER_AGENT_KEY.name(), userAgent);
 
     adminBuilder.stubSettings().setTransportChannelProvider(
@@ -170,7 +167,7 @@ public class BigtableVaneerSettingsFactory {
     builder.bulkMutationsSettings()
         .setBatchingSettings(batchSettingsBuilder.build())
         .setSimpleTimeoutNoRetries(
-            ofMillis(options.getCallOptionsConfig().getShortRpcTimeoutMs()));
+            ofMillis(shortRpcTimeoutMs));
   }
 
   /**
@@ -279,34 +276,23 @@ public class BigtableVaneerSettingsFactory {
   }
 
   /**
-   * To create {@link CredentialsProvider} based on {CredentialType of {@link BigtableOptions}.
+   * To create {@link CredentialsProvider} based on {@link CredentialOptions}.
    *
    * @param credentialOptions a {@link CredentialOptions} object.
    * @throws IOException if any.
    */
   private static CredentialsProvider buildCredentialProvider(
       CredentialOptions credentialOptions) throws IOException {
-    CredentialsProvider credentialsProvider = NoCredentialsProvider.create();
+    try {
+      final Credentials credentials = CredentialFactory.getCredentials(credentialOptions);
+      if (credentials == null) {
+        LOG.info("Enabling the use of null credentials. This should not be used in production.");
+        return NoCredentialsProvider.create();
+      }
 
-    switch (credentialOptions.getCredentialType()) {
-      case DefaultCredentials:
-        credentialsProvider = BigtableStubSettings.defaultCredentialsProviderBuilder().build();
-        break;
-      case P12:
-      case SuppliedCredentials:
-      case SuppliedJson:
-        Credentials credential =
-            CredentialFactory.getInputStreamCredential(new FileInputStream(getEnvJsonFile()));
-        credentialsProvider = FixedCredentialsProvider.create(credential);
-        break;
-      case None:
-        credentialsProvider = NoCredentialsProvider.create();
-        break;
-      default:
-        throw new IllegalStateException("Either service account or null credentials must be enabled");
+      return FixedCredentialsProvider.create(credentials);
+    } catch (GeneralSecurityException exception) {
+      throw new IOException("Could not initialize credentials.", exception);
     }
-    LOG.debug("CredentialsProvider used is: %s", credentialsProvider);
-
-    return credentialsProvider;
   }
 }
