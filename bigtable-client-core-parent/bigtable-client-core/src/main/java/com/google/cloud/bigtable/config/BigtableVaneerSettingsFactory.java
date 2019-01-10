@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Google Inc. All Rights Reserved.
+ * Copyright 2019 Google LLC. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,15 @@ import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
-import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.retrying.RetrySettings;
-import com.google.api.gax.rpc.FixedHeaderProvider;
-import com.google.api.gax.rpc.HeaderProvider;
+import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.auth.Credentials;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
-import io.grpc.internal.GrpcUtil;
+import com.google.cloud.bigtable.grpc.BigtableSession;
+import io.grpc.ManagedChannel;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import javax.annotation.Nonnull;
@@ -60,13 +60,12 @@ public class BigtableVaneerSettingsFactory {
     checkState(options.getRetryOptions().enableRetries(), "Disabling retries is not currently supported.");
 
     final BigtableDataSettings.Builder builder = BigtableDataSettings.newBuilder();
-    final String endpoint = options.getDataHost() + ":" + options.getPort();
 
     builder.setProjectId(options.getProjectId());
     builder.setInstanceId(options.getInstanceId());
     builder.setAppProfileId(options.getAppProfileId());
 
-    builder.setEndpoint(endpoint);
+    builder.setEndpoint(options.getDataHost() + ":" + options.getPort());
 
     builder.setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
 
@@ -82,15 +81,14 @@ public class BigtableVaneerSettingsFactory {
 
     buildSampleRowKeysSettings(builder, options);
 
-    String userAgent = BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent();
-    HeaderProvider headers = FixedHeaderProvider.create(GrpcUtil.USER_AGENT_KEY.name(), userAgent);
-
-    builder.setTransportChannelProvider(
-        InstantiatingGrpcChannelProvider.newBuilder()
-            .setHeaderProvider(headers)
-            .setEndpoint(endpoint)
-            .setPoolSize(options.getChannelCount())
-            .build());
+    try {
+      ManagedChannel channel = BigtableSession
+          .createChannelPool(options.getDataHost(), options, options.getChannelCount());
+      builder.setTransportChannelProvider(
+          FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)));
+    } catch (GeneralSecurityException ex) {
+      throw new IOException("Could not create channels.", ex);
+    }
 
     return builder.build();
   }
@@ -112,22 +110,19 @@ public class BigtableVaneerSettingsFactory {
     adminBuilder.setProjectId(options.getProjectId());
     adminBuilder.setInstanceId(options.getInstanceId());
 
-    final String endpoint = options.getAdminHost() + ":" + options.getPort();
-    adminBuilder.stubSettings().setEndpoint(endpoint);
+    adminBuilder.stubSettings().setEndpoint(options.getAdminHost() + ":" + options.getPort());
 
-    //Overriding default credential with BigtableOptions's credential.
     adminBuilder.stubSettings()
         .setCredentialsProvider(buildCredentialProvider(options.getCredentialOptions()));
 
-    String userAgent = BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent();
-    HeaderProvider headers = FixedHeaderProvider.create(GrpcUtil.USER_AGENT_KEY.name(), userAgent);
-
-    adminBuilder.stubSettings().setTransportChannelProvider(
-        InstantiatingGrpcChannelProvider.newBuilder()
-            .setHeaderProvider(headers)
-            .setEndpoint(endpoint)
-            .setPoolSize(options.getChannelCount())
-            .build());
+    try {
+      ManagedChannel channel = BigtableSession
+          .createChannelPool(options.getAdminHost(), options, options.getChannelCount());
+      adminBuilder.stubSettings().setTransportChannelProvider(
+          FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)));
+    } catch (GeneralSecurityException ex) {
+      throw new IOException("Could not create channels.", ex);
+    }
 
     return adminBuilder.build();
   }
