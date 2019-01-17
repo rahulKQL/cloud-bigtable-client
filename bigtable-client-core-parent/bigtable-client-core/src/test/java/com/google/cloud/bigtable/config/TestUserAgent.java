@@ -53,12 +53,12 @@ public class TestUserAgent {
 
   @Before
   public void setUp() throws Exception {
-    //After fetching available port, closing the ServerSocket.
+    //After fetching available port, closes the ServerSocket.
     ServerSocket serverSocket = new ServerSocket(0);
     final int availablePort = serverSocket.getLocalPort();
     serverSocket.close();
 
-    //Creating Server with ServerInterceptor, To fetch user-agent header.
+    //Creates Server with ServerInterceptor, in order to fetch user-agent header.
     server = ServerBuilder.forPort(availablePort)
         .addService(ServerInterceptors.intercept(new BigtableExtendedImpl() {
         }, new HeaderServerInterceptor())).build();
@@ -121,14 +121,14 @@ public class TestUserAgent {
         ServerCall<ReqT, RespT> call,
         final Metadata requestHeaders,
         ServerCallHandler<ReqT, RespT> next) {
-      //Logging all available headers.
+      //Logs all available headers.
       logger.info("header received from client:" + requestHeaders);
 
       Metadata.Key<String> USER_AGENT_KEY =
           Metadata.Key.of("user-agent", Metadata.ASCII_STRING_MARSHALLER);
       String headerValue = requestHeaders.get(USER_AGENT_KEY);
 
-      //In case of user-agent not matching, throwing AssertionFailure.
+      //Throws AssertionFailure if user-agent does not match.
       if(!EXPECTED_HEADER_PATTERN.matcher(headerValue).matches()){
         throw new AssertionFailure("User-Agent's format did not match");
       }

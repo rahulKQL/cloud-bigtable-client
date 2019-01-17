@@ -123,11 +123,11 @@ public class TestBigtableVaneerSettingsFactory {
   }
 
   /**
-   * This test will only run if it found "test.client.project.id" & "test.client.project.id"
-   * VM arguments. Then it calls to an actual Bigtable Table & performs below checks:
+   * This test runs only if it finds "test.client.project.id" & "test.client.project.id"
+   * VM arguments. Then it calls to an actual Bigtable Table & performs the checks below:
    * <pre>
    *   <ul>
-   *     <li>Check if table with TABLE_ID is existed or not.</li>
+   *     <li>Checks if table with TABLE_ID exists.</li>
    *     <li>Creates a new table with TABLE_ID.</li>
    *     <li>Mutates a single row with {@link RowMutation}.</li>
    *     <li>Retrieves output in {@link ServerStream < Row >}.</li>
@@ -196,7 +196,7 @@ public class TestBigtableVaneerSettingsFactory {
       //Removing the table.
       adminClient.deleteTable(TABLE_ID);
     } finally {
-      //Removing Table in case of some exception occurres.
+      //Removing Table in case of exceptions.
       boolean tableExist = adminClient.exists(TABLE_ID);
       if (tableExist) {
         adminClient.deleteTable(TABLE_ID);
@@ -251,7 +251,7 @@ public class TestBigtableVaneerSettingsFactory {
   public void testRetriableRpcs() throws IOException {
     dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
 
-    //Verifying RetrySettings & RetryCodes of retryables methods.
+    //Verifying RetrySettings & RetryCodes of retryable methods.
 
     //sampleRowKeys
     verifyRetry(dataSettings.sampleRowKeysSettings().getRetrySettings());
@@ -295,7 +295,7 @@ public class TestBigtableVaneerSettingsFactory {
         .build();
     dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
 
-    //Verifying RetrySettings & RetryCodes of non-retryables methods.
+    //Verifying RetrySettings & RetryCodes of non-retryable methods.
 
     //bulkMutationsSettings
     verifyDisabledRetry(dataSettings.bulkMutationsSettings().getRetrySettings());

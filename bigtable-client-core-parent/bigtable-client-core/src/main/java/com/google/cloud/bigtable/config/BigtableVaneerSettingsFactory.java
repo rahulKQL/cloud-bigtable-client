@@ -128,7 +128,7 @@ public class BigtableVaneerSettingsFactory {
   }
 
   /**
-   * This method is use to build {@link BatchingSettings}.
+   * This method is used to build {@link BatchingSettings}.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param options a {@link BigtableOptions} object.
@@ -166,7 +166,7 @@ public class BigtableVaneerSettingsFactory {
   }
 
   /**
-   * To build BigtableDataSettings#sampleRowKeysSettings with default retries settings.
+   * To build BigtableDataSettings#sampleRowKeysSettings with default Retry settings.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param options a {@link BigtableOptions} object.
@@ -177,7 +177,7 @@ public class BigtableVaneerSettingsFactory {
   }
 
   /**
-   * To build BigtableDataSettings#mutateRowSettings with default retries settings.
+   * To build BigtableDataSettings#mutateRowSettings with default Retry settings.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param options a {@link BigtableOptions} object.
@@ -188,7 +188,7 @@ public class BigtableVaneerSettingsFactory {
   }
 
   /**
-   * To build BigtableDataSettings#readRowsSettings with default retries settings.
+   * To build BigtableDataSettings#readRowsSettings with default Retry settings.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
    * @param options a {@link BigtableOptions} object.
@@ -214,7 +214,7 @@ public class BigtableVaneerSettingsFactory {
   }
 
   /**
-   * This method builds BigtableDataSettings#readModifyWriteSettngs when short timeout is other
+   * This method builds BigtableDataSettings#readModifyWriteRowSettings when short timeout is other
    * than 60_000 ms.
    *
    * @param builder a {@link BigtableDataSettings.Builder} object.
