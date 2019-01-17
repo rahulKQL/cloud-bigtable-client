@@ -15,15 +15,12 @@
  */
 package com.google.cloud.bigtable.hbase2_x;
 
-import static com.google.cloud.bigtable.hbase.adapters.admin.ColumnDescriptorAdapter.buildGarbageCollectionRule;
 import static com.google.cloud.bigtable.hbase2_x.FutureUtils.failedFuture;
-import static com.google.cloud.bigtable.hbase.util.ModifyTableBuilder.buildModifications;
 
 import com.google.bigtable.admin.v2.CreateTableFromSnapshotRequest;
 import com.google.bigtable.admin.v2.DeleteSnapshotRequest;
 import com.google.bigtable.admin.v2.DeleteTableRequest;
 import com.google.bigtable.admin.v2.DropRowRangeRequest;
-import com.google.bigtable.admin.v2.GetTableRequest;
 import com.google.bigtable.admin.v2.ListSnapshotsRequest;
 import com.google.bigtable.admin.v2.ListTablesRequest;
 import com.google.bigtable.admin.v2.Snapshot;
@@ -35,6 +32,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.grpc.BigtableClusterName;
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
+import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.hbase.BigtableConstants;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.hbase.util.ModifyTableBuilder;
@@ -108,8 +106,9 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
   public BigtableAsyncAdmin(CommonConnection asyncConnection) throws IOException {
     LOG.debug("Creating BigtableAsyncAdmin");
     this.options = asyncConnection.getOptions();
+    BigtableSession session = asyncConnection.getSession();
     this.bigtableTableAdminClient = new BigtableTableAdminClient(
-        asyncConnection.getSession().getTableAdminClient());
+        session.getTableAdminClient(), session.getTableAdminClientWrapper());
     this.disabledTables = asyncConnection.getDisabledTables();
     this.bigtableInstanceName = options.getInstanceName();
     this.tableAdapter2x = new TableAdapter2x(options);
@@ -131,8 +130,7 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
     }
 
     CreateTableRequest request = TableAdapter2x.adapt(desc, splitKeys);
-    return bigtableTableAdminClient.createTableAsync(
-            request.toProto(options.getProjectId(), options.getInstanceId()))
+    return bigtableTableAdminClient.createTableAsync(request)
         .handle((resp, ex) -> {
           if (ex != null) {
             throw new CompletionException(
@@ -234,6 +232,7 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
          r.stream()
             .filter(t -> !tableNamePattern.isPresent() ||
                 tableNamePattern.get().matcher(bigtableInstanceName.toTableId(t.getName())).matches())
+            .map(table-> com.google.cloud.bigtable.admin.v2.models.Table.fromProto(table))
             .map(tableAdapter2x::adapt)
             .collect(Collectors.toList())
       );
@@ -278,12 +277,7 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
       return CompletableFuture.completedFuture(null);
     }
 
-    GetTableRequest request = GetTableRequest
-        .newBuilder()
-        .setName(bigtableInstanceName.toTableNameStr(tableName.getNameAsString()))
-        .build();
-
-    return bigtableTableAdminClient.getTableAsync(request).handle((resp, ex) -> {
+    return bigtableTableAdminClient.getTableAsync(tableName.getNameAsString()).handle((resp, ex) -> {
       if (ex != null) {
         if (Status.fromThrowable(ex).getCode() == Status.Code.NOT_FOUND) {
           throw new CompletionException(new TableNotFoundException(tableName));
@@ -368,7 +362,7 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
       ModifyTableBuilder modifications) {
     ModifyColumnFamiliesRequest request = modifications.build();
     return bigtableTableAdminClient
-        .modifyColumnFamilyAsync(request.toProto(options.getProjectId(), options.getInstanceId()))
+        .modifyColumnFamilyAsync(request)
         .thenApply(r -> null);
   }
 

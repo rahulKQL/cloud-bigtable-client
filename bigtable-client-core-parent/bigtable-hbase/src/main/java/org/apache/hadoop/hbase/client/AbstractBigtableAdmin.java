@@ -258,11 +258,8 @@ public abstract class AbstractBigtableAdmin implements Admin {
       return null;
     }
 
-    String bigtableTableName = toBigtableName(tableName);
-    GetTableRequest request = GetTableRequest.newBuilder().setName(bigtableTableName).build();
-
     try {
-      return tableAdapter.adapt(bigtableTableAdminClient.getTable(request));
+      return tableAdapter.adapt(tableAdminClientWrapper.getTable(tableName.getNameAsString()));
     } catch (Throwable throwable) {
       if (Status.fromThrowable(throwable).getCode() == Status.Code.NOT_FOUND) {
         throw new TableNotFoundException(tableName);
@@ -767,16 +764,6 @@ public abstract class AbstractBigtableAdmin implements Admin {
       throw new IOException(
           String.format("Failed to truncate table '%s'", tableName.getNameAsString()), throwable);
     }
-  }
-
-  /**
-   * <p>toBigtableName.</p>
-   *
-   * @param tableName a {@link org.apache.hadoop.hbase.TableName} object.
-   * @return a {@link java.lang.String} object.
-   */
-  protected String toBigtableName(TableName tableName) {
-    return bigtableInstanceName.toTableNameStr(tableName.getNameAsString());
   }
 
   /** {@inheritDoc} */
