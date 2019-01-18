@@ -57,9 +57,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
-public class TestBigtableVaneerSettingsFactory {
+public class TestBigtableVeneerSettingsFactory {
 
-  private static final Logger LOG = new Logger(TestBigtableVaneerSettingsFactory.class);
+  private static final Logger LOG = new Logger(TestBigtableVeneerSettingsFactory.class);
 
   private static final String ACTUAL_PROJECT_ID = System.getProperty("test.client.project.id");
   private static final String ACTUAL_INSTANCE_ID = System.getProperty("test.client.instance.id");
@@ -115,10 +115,10 @@ public class TestBigtableVaneerSettingsFactory {
         .setUserAgent("native-bigtable-test-useragent")
         .build();
 
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
     dataClient = BigtableDataClient.create(dataSettings);
 
-    adminSettings = BigtableVaneerSettingsFactory.createTableAdminSettings(bigtableOptions);
+    adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(bigtableOptions);
     adminClient = BigtableTableAdminClient.create(adminSettings);
   }
 
@@ -211,7 +211,7 @@ public class TestBigtableVaneerSettingsFactory {
 
     expectException.expect(IllegalStateException.class);
     expectException.expectMessage("Project ID is required");
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
   }
 
   @Test
@@ -220,7 +220,7 @@ public class TestBigtableVaneerSettingsFactory {
 
     expectException.expect(IllegalStateException.class);
     expectException.expectMessage("Instance ID is required");
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
   }
 
   @Test
@@ -233,7 +233,7 @@ public class TestBigtableVaneerSettingsFactory {
 
     expectException.expect(IllegalStateException.class);
     expectException.expectMessage("Disabling retries is not currently supported.");
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
   }
 
   @Test
@@ -243,13 +243,13 @@ public class TestBigtableVaneerSettingsFactory {
             .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
             .setCredentialOptions(CredentialOptions.nullCredential())
             .setUserAgent(TEST_USER_AGENT).build();
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
     assertTrue(dataSettings.getCredentialsProvider() instanceof NoCredentialsProvider);
   }
 
   @Test
   public void testRetriableRpcs() throws IOException {
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
 
     //Verifying RetrySettings & RetryCodes of retryable methods.
 
@@ -293,7 +293,7 @@ public class TestBigtableVaneerSettingsFactory {
         .setCredentialOptions(CredentialOptions.nullCredential())
         .setCallOptionsConfig(callOptions)
         .build();
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
 
     //Verifying RetrySettings & RetryCodes of non-retryable methods.
 
@@ -329,7 +329,7 @@ public class TestBigtableVaneerSettingsFactory {
         .setCredentialOptions(CredentialOptions.nullCredential())
         .setBulkOptions(bulkOptions)
         .build();
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
     assertFalse(dataSettings.bulkMutationsSettings().getBatchingSettings().getIsEnabled());
   }
 
@@ -341,7 +341,7 @@ public class TestBigtableVaneerSettingsFactory {
             .setInstanceId(TEST_INSTANCE_ID)
             .setCredentialOptions(CredentialOptions.nullCredential())
             .build();
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(options);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
 
     BulkOptions bulkOptions = options.getBulkOptions();
     BatchingSettings batchingSettings = dataSettings.bulkMutationsSettings().getBatchingSettings();
@@ -360,7 +360,7 @@ public class TestBigtableVaneerSettingsFactory {
 
   @Test
   public void testReadModifyWrite() throws IOException {
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
 
     RetrySettings actualRetry = dataSettings.readModifyWriteRowSettings().getRetrySettings();
     long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
@@ -371,7 +371,7 @@ public class TestBigtableVaneerSettingsFactory {
 
   @Test
   public void testCheckAndMutateRow() throws IOException {
-    dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
     RetrySettings actualRetry = dataSettings.checkAndMutateRowSettings().getRetrySettings();
     long rpcTimeoutMillis = bigtableOptions.getCallOptionsConfig().getShortRpcTimeoutMs();
     assertEquals(TimeUnit.MILLISECONDS.toSeconds(rpcTimeoutMillis),
@@ -385,7 +385,7 @@ public class TestBigtableVaneerSettingsFactory {
 
     expectException.expect(IllegalStateException.class);
     expectException.expectMessage("Project ID is required");
-    adminSettings = BigtableVaneerSettingsFactory.createTableAdminSettings(options);
+    adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(options);
   }
 
   @Test
@@ -394,7 +394,7 @@ public class TestBigtableVaneerSettingsFactory {
 
     expectException.expect(IllegalStateException.class);
     expectException.expectMessage("Instance ID is required");
-    adminSettings = BigtableVaneerSettingsFactory.createTableAdminSettings(options);
+    adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(options);
   }
 
   @Test
@@ -407,7 +407,7 @@ public class TestBigtableVaneerSettingsFactory {
             .setAdminHost("localhost")
             .setPort(8080)
             .build();
-    adminSettings = BigtableVaneerSettingsFactory.createTableAdminSettings(options);
+    adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(options);
     assertTrue(
         adminSettings.getStubSettings().getCredentialsProvider() instanceof NoCredentialsProvider);
   }

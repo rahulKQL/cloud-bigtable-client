@@ -15,6 +15,13 @@
  */
 package com.google.cloud.bigtable.config;
 
+import com.google.api.gax.core.NoCredentialsProvider;
+
+import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.FixedTransportChannelProvider;
+import com.google.api.gax.rpc.HeaderProvider;
 import com.google.bigtable.v2.BigtableGrpc;
 import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowResponse;
@@ -23,6 +30,7 @@ import com.google.bigtable.v2.ReadRowsResponse;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import io.grpc.ForwardingServerCall;
+import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -30,15 +38,27 @@ import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerInterceptors;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.stub.StreamObserver;
+import java.io.File;
 import java.net.ServerSocket;
 
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLException;
+import junit.framework.AssertionFailedError;
 import org.junit.After;
-import org.junit.Before;
+import org.junit.AssumptionViolatedException;
+import org.junit.Ignore;
 import org.junit.Test;
-import sun.jvm.hotspot.utilities.AssertionFailure;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+import static io.grpc.internal.GrpcUtil.USER_AGENT_KEY;
+
+@RunWith(JUnit4.class)
 public class TestUserAgent {
   private static final Logger logger = new Logger(TestUserAgent.class);
 
@@ -46,24 +66,21 @@ public class TestUserAgent {
   private static final String TEST_INSTANCE_ID = "instance";
   private static final String TEST_USER_AGENT = "sampleUserAgent";
   private static final Pattern EXPECTED_HEADER_PATTERN =
-      Pattern.compile(BigtableVersionInfo.CORE_USER_AGENT + "," + TEST_USER_AGENT + ".*");
+      Pattern.compile(".*" + TEST_USER_AGENT + ".*");
 
+
+  private BigtableDataSettings dataSettings;
   private BigtableDataClient dataClient;
+
   private Server server;
 
-  @Before
-  public void setUp() throws Exception {
-    //After fetching available port, closes the ServerSocket.
+  @Test
+  public void testDataClient() throws Exception{
     ServerSocket serverSocket = new ServerSocket(0);
     final int availablePort = serverSocket.getLocalPort();
     serverSocket.close();
 
-    //Creates Server with ServerInterceptor, in order to fetch user-agent header.
-    server = ServerBuilder.forPort(availablePort)
-        .addService(ServerInterceptors.intercept(new BigtableExtendedImpl() {
-        }, new HeaderServerInterceptor())).build();
-    server.start();
-    logger.info("Starting test server at port: " + availablePort);
+    createServer(availablePort);
 
     BigtableOptions bigtableOptions =
         BigtableOptions.builder()
@@ -76,9 +93,75 @@ public class TestUserAgent {
             .setCredentialOptions(CredentialOptions.nullCredential())
             .setPort(availablePort)
             .build();
-    BigtableDataSettings dataSettings = BigtableVaneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
 
     dataClient = BigtableDataClient.create(dataSettings);
+    dataClient.readRow("my-table-name", "sample-row");
+  }
+
+  @Test
+  public void testDataClientWithSSLContext() throws Exception{
+    ServerSocket serverSocket = new ServerSocket(0);
+    final int availablePort = serverSocket.getLocalPort();
+    serverSocket.close();
+    createSecuredServer(availablePort);
+
+    BigtableDataSettings.Builder builder =
+        BigtableDataSettings.newBuilder()
+            .setProjectId(TEST_PROJECT_ID)
+            .setInstanceId(TEST_INSTANCE_ID)
+            .setCredentialsProvider(NoCredentialsProvider.create());
+
+    //Client Certificate
+    String trustCertCollectionFilePath = "/Users/rahul/Documents/My_Home/GCP_Work/GRPC/sslcert"
+        + "/ca.crt";
+    SslContext sslContext  = buildSslContext(trustCertCollectionFilePath,
+        null, null);
+
+    ManagedChannel sslChannel = NettyChannelBuilder
+        .forAddress("localhost", availablePort)
+        .sslContext(sslContext)
+        .userAgent(TEST_USER_AGENT)
+        .build();
+
+    builder.setTransportChannelProvider(
+        FixedTransportChannelProvider.create(GrpcTransportChannel.create(sslChannel)));
+
+    dataClient = BigtableDataClient.create(builder.build());
+    dataClient.readRow("my-table-name", "sample-row");
+  }
+
+  /**
+   * Ignored this test case as it is not being intercepted.
+   * @throws Exception
+   */
+  @Test
+  @Ignore
+  public void testDataClientWithPlainText() throws Exception{
+    ServerSocket serverSocket = new ServerSocket(0);
+    final int availablePort = serverSocket.getLocalPort();
+    serverSocket.close();
+    createServer(availablePort);
+
+    BigtableDataSettings.Builder builder =
+        BigtableDataSettings.newBuilder()
+            .setProjectId(TEST_PROJECT_ID)
+            .setInstanceId(TEST_INSTANCE_ID)
+            .setCredentialsProvider(NoCredentialsProvider.create());
+    try{
+      HeaderProvider headers = FixedHeaderProvider.create(USER_AGENT_KEY.name(), TEST_USER_AGENT);
+      builder.setTransportChannelProvider(
+          InstantiatingGrpcChannelProvider.newBuilder()
+              .setHeaderProvider(headers)
+              .setEndpoint("localhost:"+availablePort)
+              .build());
+    }catch(Exception ex){
+      System.out.println("excetion" + ex.getMessage());
+    }
+    finally {
+      System.out.println("status for transportCahnnelProvider");
+      System.out.println(builder.getTransportChannelProvider());
+    }
   }
 
   @After
@@ -92,9 +175,39 @@ public class TestUserAgent {
     }
   }
 
-  @Test
-  public void testDataClient(){
-    dataClient.readRow("my-table-name", "sample-row");
+  public void createServer(int port) throws Exception{
+    server = ServerBuilder.forPort(port)
+        .addService(ServerInterceptors.intercept(new TestUserAgent.BigtableExtendedImpl() {
+        }, new TestUserAgent.HeaderServerInterceptor()))
+        .build();
+    server.start();
+  }
+
+  public void createSecuredServer(int port) throws Exception{
+    //Server Certificates
+    String certChainFilePath = "/Users/rahul/Documents/My_Home/GCP_Work/GRPC/sslcert/server.crt";
+    String privateKeyFilePath = "/Users/rahul/Documents/My_Home/GCP_Work/GRPC/sslcert/server.pem";
+    File certChain = new File(certChainFilePath);
+    File privateKey = new File(privateKeyFilePath);
+    server = ServerBuilder.forPort(port)
+        .addService(ServerInterceptors.intercept(new TestUserAgent.BigtableExtendedImpl() {},
+            new TestUserAgent.HeaderServerInterceptor()))
+        .useTransportSecurity(certChain, privateKey)
+        .build();
+    server.start();
+  }
+
+  private static SslContext buildSslContext(String trustCertCollectionFilePath,
+      String clientCertChainFilePath,
+      String clientPrivateKeyFilePath) throws SSLException {
+    SslContextBuilder builder = GrpcSslContexts.forClient();
+    if (trustCertCollectionFilePath != null) {
+      builder.trustManager(new File(trustCertCollectionFilePath));
+    }
+    if (clientCertChainFilePath != null && clientPrivateKeyFilePath != null) {
+      builder.keyManager(new File(clientCertChainFilePath), new File(clientPrivateKeyFilePath));
+    }
+    return builder.build();
   }
 
   public static class BigtableExtendedImpl extends BigtableGrpc.BigtableImplBase {
@@ -115,22 +228,21 @@ public class TestUserAgent {
   }
 
   public class HeaderServerInterceptor implements ServerInterceptor {
-
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
         ServerCall<ReqT, RespT> call,
         final Metadata requestHeaders,
         ServerCallHandler<ReqT, RespT> next) {
-      //Logs all available headers.
+      //Logging all available headers.
       logger.info("header received from client:" + requestHeaders);
 
       Metadata.Key<String> USER_AGENT_KEY =
           Metadata.Key.of("user-agent", Metadata.ASCII_STRING_MARSHALLER);
       String headerValue = requestHeaders.get(USER_AGENT_KEY);
 
-      //Throws AssertionFailure if user-agent does not match.
+      //In case of user-agent not matching, throwing AssertionFailure.
       if(!EXPECTED_HEADER_PATTERN.matcher(headerValue).matches()){
-        throw new AssertionFailure("User-Agent's format did not match");
+        throw new AssumptionViolatedException("User-Agent's format did not match");
       }
       return next.startCall(new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {}, requestHeaders);
     }
