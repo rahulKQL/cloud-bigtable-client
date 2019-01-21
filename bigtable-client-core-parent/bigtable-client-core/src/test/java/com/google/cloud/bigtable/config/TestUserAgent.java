@@ -29,6 +29,7 @@ import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.ReadRowsResponse;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.common.io.Resources;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
@@ -46,11 +47,9 @@ import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.net.ServerSocket;
 
+import java.net.URL;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLException;
-import junit.framework.AssertionFailedError;
-import org.junit.After;
-import org.junit.AssumptionViolatedException;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,7 +66,6 @@ public class TestUserAgent {
   private static final String TEST_USER_AGENT = "sampleUserAgent";
   private static final Pattern EXPECTED_HEADER_PATTERN =
       Pattern.compile(".*" + TEST_USER_AGENT + ".*");
-
 
   private BigtableDataSettings dataSettings;
   private BigtableDataClient dataClient;
@@ -113,10 +111,7 @@ public class TestUserAgent {
             .setCredentialsProvider(NoCredentialsProvider.create());
 
     //Client Certificate
-    String trustCertCollectionFilePath = "/Users/rahul/Documents/My_Home/GCP_Work/GRPC/sslcert"
-        + "/ca.crt";
-    SslContext sslContext  = buildSslContext(trustCertCollectionFilePath,
-        null, null);
+    SslContext sslContext  = buildSslContext();
 
     ManagedChannel sslChannel = NettyChannelBuilder
         .forAddress("localhost", availablePort)
@@ -135,7 +130,7 @@ public class TestUserAgent {
    * Ignored this test case as it is not being intercepted.
    * @throws Exception
    */
-  @Test
+  //@Test
   @Ignore
   public void testDataClientWithPlainText() throws Exception{
     ServerSocket serverSocket = new ServerSocket(0);
@@ -164,7 +159,7 @@ public class TestUserAgent {
     }
   }
 
-  @After
+  //@After
   public void tearDown() throws Exception {
     dataClient.close();
     if (server != null) {
@@ -184,28 +179,32 @@ public class TestUserAgent {
   }
 
   public void createSecuredServer(int port) throws Exception{
-    //Server Certificates
-    String certChainFilePath = "/Users/rahul/Documents/My_Home/GCP_Work/GRPC/sslcert/server.crt";
-    String privateKeyFilePath = "/Users/rahul/Documents/My_Home/GCP_Work/GRPC/sslcert/server.pem";
-    File certChain = new File(certChainFilePath);
-    File privateKey = new File(privateKeyFilePath);
-    server = ServerBuilder.forPort(port)
+
+    ServerBuilder builder = ServerBuilder.forPort(port)
         .addService(ServerInterceptors.intercept(new TestUserAgent.BigtableExtendedImpl() {},
-            new TestUserAgent.HeaderServerInterceptor()))
-        .useTransportSecurity(certChain, privateKey)
-        .build();
+            new TestUserAgent.HeaderServerInterceptor()));
+    try{
+      URL serverCertChain = Resources.getResource("sslCertificates/server.crt");
+      URL privateKey = Resources.getResource("sslCertificates/server.pem");
+
+      builder.useTransportSecurity(new File(serverCertChain.getFile()), new File(privateKey.getFile()));
+    }catch(Exception ex){
+      throw new AssertionError("No server certificates found");
+    }
+    server = builder.build();
     server.start();
   }
 
-  private static SslContext buildSslContext(String trustCertCollectionFilePath,
-      String clientCertChainFilePath,
-      String clientPrivateKeyFilePath) throws SSLException {
+  private static SslContext buildSslContext() throws SSLException {
     SslContextBuilder builder = GrpcSslContexts.forClient();
-    if (trustCertCollectionFilePath != null) {
-      builder.trustManager(new File(trustCertCollectionFilePath));
-    }
-    if (clientCertChainFilePath != null && clientPrivateKeyFilePath != null) {
-      builder.keyManager(new File(clientCertChainFilePath), new File(clientPrivateKeyFilePath));
+
+    try{
+      URL url = Resources.getResource("sslCertificates/ca.crt");
+      if(url != null){
+        builder.trustManager(new File(url.getFile()));
+      }
+    }catch(Exception ex){
+      throw new AssertionError("No client trust certificate found");
     }
     return builder.build();
   }
@@ -240,9 +239,9 @@ public class TestUserAgent {
           Metadata.Key.of("user-agent", Metadata.ASCII_STRING_MARSHALLER);
       String headerValue = requestHeaders.get(USER_AGENT_KEY);
 
-      //In case of user-agent not matching, throwing AssertionFailure.
+      //In case of user-agent not matching, throwing AssertionError.
       if(!EXPECTED_HEADER_PATTERN.matcher(headerValue).matches()){
-        throw new AssumptionViolatedException("User-Agent's format did not match");
+        throw new AssertionError("User-Agent's format did not match");
       }
       return next.startCall(new ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(call) {}, requestHeaders);
     }
