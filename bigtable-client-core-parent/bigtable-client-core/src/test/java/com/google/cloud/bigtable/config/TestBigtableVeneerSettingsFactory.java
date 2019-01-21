@@ -165,7 +165,7 @@ public class TestBigtableVeneerSettingsFactory {
     final ByteString TEST_VALUE = ByteString.copyFromUtf8("Test using BigtableDataclient & "
         + "BigtableTableAdminClient");
 
-    //Checking if table already existed in the provided Instance.
+    //Checking if table already existed in the provided instance.
     if (adminClient.exists(TABLE_ID)) {
       adminClient.deleteTable(TABLE_ID);
     }
