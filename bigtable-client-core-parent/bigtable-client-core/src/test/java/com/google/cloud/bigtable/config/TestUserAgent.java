@@ -30,12 +30,9 @@ import com.google.bigtable.v2.ReadRowsResponse;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.common.io.Resources;
-import io.grpc.CallOptions;
-import io.grpc.Channel;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.ServerCall;
@@ -75,17 +72,12 @@ public class TestUserAgent {
 
   private Server server;
 
-  /**
-   * To Test UserAgent & PlainText Negotiation type
-   * when {@link BigtableDataSettings} is created using {@link BigtableOptions}.
-   */
   @Test
-  public void testUserAgentUsingPlainTextNegotiation() throws Exception{
+  public void testDataClient() throws Exception{
     ServerSocket serverSocket = new ServerSocket(0);
     final int availablePort = serverSocket.getLocalPort();
     serverSocket.close();
 
-    //Creates non-ssl server.
     createServer(availablePort);
 
     BigtableOptions bigtableOptions =
@@ -105,17 +97,11 @@ public class TestUserAgent {
     dataClient.readRow("my-table-name", "sample-row");
   }
 
-  /**
-   * To Test TLS Negotiation type using SSL enabled server
-   * when {@link BigtableDataSettings} is created using {@link BigtableOptions}.
-   */
   @Test
-  public void testUserAgentUsingTLSNegotiation() throws Exception{
+  public void testDataClientWithSSLContext() throws Exception{
     ServerSocket serverSocket = new ServerSocket(0);
     final int availablePort = serverSocket.getLocalPort();
     serverSocket.close();
-
-    //Creates SSL enabled server.
     createSecuredServer(availablePort);
 
     BigtableDataSettings.Builder builder =
@@ -141,19 +127,12 @@ public class TestUserAgent {
   }
 
   /**
-   * Ignoring this test cases as either of below scenario traps in infinite loop.
-   * Created this test case for below two scenarios:
-   * <pre>
-   *   <ul>
-   *     <li>When plainText is used on SSL-enabled server.</li>
-   *     <li>When TLS Negotiation is used on non-SSL server.</li>
-   *   </ul>
-   * </pre>
+   * Ignored this test case as it is not being intercepted.
    * @throws Exception
    */
+  //@Test
   @Ignore
-  @Test
-  public void testPlainTextAndSSLServer() throws Exception{
+  public void testDataClientWithPlainText() throws Exception{
     ServerSocket serverSocket = new ServerSocket(0);
     final int availablePort = serverSocket.getLocalPort();
     serverSocket.close();
@@ -164,38 +143,20 @@ public class TestUserAgent {
             .setProjectId(TEST_PROJECT_ID)
             .setInstanceId(TEST_INSTANCE_ID)
             .setCredentialsProvider(NoCredentialsProvider.create());
-//    try{
-//      HeaderProvider headers = FixedHeaderProvider.create(USER_AGENT_KEY.name(), TEST_USER_AGENT);
-//      builder.setTransportChannelProvider(
-//          InstantiatingGrpcChannelProvider.newBuilder()
-//              .setHeaderProvider(headers)
-//              .setEndpoint("localhost:"+availablePort)
-//              .build());
-//    }catch(Exception ex){
-//      throw new AssertionError("could not create Channel" + ex.getMessage());
-//    }
-
-    //OR if we SSL-enabled server tries to use PlainText negotiation.
-
     try{
-      //Client Certificate
-      SslContext sslContext  = buildSslContext();
-
-      ManagedChannel sslChannel = NettyChannelBuilder
-          .forAddress("localhost", availablePort)
-          .userAgent(TEST_USER_AGENT)
-          .sslContext(sslContext)
-          .usePlaintext()
-          .build();
-
+      HeaderProvider headers = FixedHeaderProvider.create(USER_AGENT_KEY.name(), TEST_USER_AGENT);
       builder.setTransportChannelProvider(
-          FixedTransportChannelProvider.create(GrpcTransportChannel.create(sslChannel)));
+          InstantiatingGrpcChannelProvider.newBuilder()
+              .setHeaderProvider(headers)
+              .setEndpoint("localhost:"+availablePort)
+              .build());
     }catch(Exception ex){
-      throw new AssertionError("could not create Channel" + ex.getMessage());
+      System.out.println("excetion" + ex.getMessage());
     }
-
-    dataClient = BigtableDataClient.create(builder.build());
-    dataClient.readRow("tableId", "rowkey");
+    finally {
+      System.out.println("status for transportCahnnelProvider");
+      System.out.println(builder.getTransportChannelProvider());
+    }
   }
 
   //@After
@@ -209,7 +170,7 @@ public class TestUserAgent {
     }
   }
 
-  private void createServer(int port) throws Exception{
+  public void createServer(int port) throws Exception{
     server = ServerBuilder.forPort(port)
         .addService(ServerInterceptors.intercept(new TestUserAgent.BigtableExtendedImpl() {
         }, new TestUserAgent.HeaderServerInterceptor()))
@@ -217,7 +178,7 @@ public class TestUserAgent {
     server.start();
   }
 
-  private void createSecuredServer(int port) throws Exception{
+  public void createSecuredServer(int port) throws Exception{
 
     ServerBuilder builder = ServerBuilder.forPort(port)
         .addService(ServerInterceptors.intercept(new TestUserAgent.BigtableExtendedImpl() {},
