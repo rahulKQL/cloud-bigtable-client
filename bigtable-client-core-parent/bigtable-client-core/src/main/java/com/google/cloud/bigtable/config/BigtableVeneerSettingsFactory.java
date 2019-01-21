@@ -80,6 +80,8 @@ public class BigtableVeneerSettingsFactory {
 
     buildReadModifyWriteSettings(builder, options.getCallOptionsConfig().getShortRpcTimeoutMs());
 
+    buildReadRowSettings(builder, options);
+
     buildReadRowsSettings(builder, options);
 
     buildMutateRowSettings(builder, options);
@@ -119,12 +121,7 @@ public class BigtableVeneerSettingsFactory {
     return adminBuilder.build();
   }
 
-  /**
-   * This method is used to build {@link BatchingSettings}.
-   *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param options a {@link BigtableOptions} object.
-   */
+  /** This method is used to build {@link BatchingSettings}. */
   private static void buildBulkMutationsSettings(Builder builder, BigtableOptions options) {
     BulkOptions bulkOptions = options.getBulkOptions();
     BatchingSettings.Builder batchSettingsBuilder = BatchingSettings.newBuilder();
@@ -157,34 +154,40 @@ public class BigtableVeneerSettingsFactory {
             ofMillis(shortRpcTimeoutMs));
   }
 
-  /**
-   * To build BigtableDataSettings#sampleRowKeysSettings with default Retry settings.
-   *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param options a {@link BigtableOptions} object.
-   */
+  /** To build BigtableDataSettings#sampleRowKeysSettings with default Retry settings. */
   private static void buildSampleRowKeysSettings(Builder builder, BigtableOptions options) {
     builder.sampleRowKeysSettings()
         .setRetrySettings(buildIdempotentRetrySettings(options));
   }
 
-  /**
-   * To build BigtableDataSettings#mutateRowSettings with default Retry settings.
-   *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param options a {@link BigtableOptions} object.
-   */
+  /** To build BigtableDataSettings#mutateRowSettings with default Retry settings. */
   private static void buildMutateRowSettings(Builder builder, BigtableOptions options) {
     builder.mutateRowSettings()
         .setRetrySettings(buildIdempotentRetrySettings(options));
   }
 
-  /**
-   * To build BigtableDataSettings#readRowsSettings with default Retry settings.
-   *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param options a {@link BigtableOptions} object.
-   */
+  /** To build default Retry settings for Point Read. */
+  private static void buildReadRowSettings(Builder builder, BigtableOptions options) {
+    RetryOptions retryOptions = options.getRetryOptions();
+
+    RetrySettings.Builder retryBuilder = RetrySettings.newBuilder()
+        .setInitialRetryDelay(ofMillis(retryOptions.getInitialBackoffMillis()))
+        .setRetryDelayMultiplier(retryOptions.getBackoffMultiplier())
+        .setMaxRetryDelay(ofMillis(retryOptions.getMaxElapsedBackoffMillis()))
+        .setMaxAttempts(retryOptions.getMaxScanTimeoutRetries());
+
+    // configurations for RPC timeouts
+    Duration readPartialRowTimeout = ofMillis(retryOptions.getReadPartialRowTimeoutMillis());
+    retryBuilder
+        .setInitialRpcTimeout(readPartialRowTimeout)
+        .setMaxRpcTimeout(readPartialRowTimeout)
+        .setTotalTimeout(ofMillis(options.getCallOptionsConfig().getLongRpcTimeoutMs()));
+
+    builder.readRowSettings()
+        .setRetrySettings(retryBuilder.build());
+  }
+
+  /** To build BigtableDataSettings#readRowsSettings with default Retry settings. */
   private static void buildReadRowsSettings(Builder builder, BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
 
@@ -208,9 +211,6 @@ public class BigtableVeneerSettingsFactory {
   /**
    * This method builds BigtableDataSettings#readModifyWriteRowSettings when short timeout is other
    * than 60_000 ms.
-   *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param rpcTimeoutMs a long value for RPC timeout.
    */
   private static void buildReadModifyWriteSettings(Builder builder, long rpcTimeoutMs) {
     if(rpcTimeoutMs != SHORT_TIMEOUT_MS_DEFAULT) {
@@ -222,9 +222,6 @@ public class BigtableVeneerSettingsFactory {
   /**
    * This method builds BigtableDataSettings#checkAndMutateRowSettings when short timeout is other
    * than 60_000 ms.
-   *
-   * @param builder a {@link BigtableDataSettings.Builder} object.
-   * @param rpcTimeoutMs a long value for RPC timeout.
    */
   private static void buildCheckAndMutateRowSettings(Builder builder, long rpcTimeoutMs) {
     if(rpcTimeoutMs != SHORT_TIMEOUT_MS_DEFAULT) {
@@ -233,12 +230,7 @@ public class BigtableVeneerSettingsFactory {
     }
   }
 
-  /**
-   * To create default {@link RetrySettings} for all idempotent method.
-   *
-   * @param options a {@link BigtableOptions} object.
-   * @return an object of {@link RetrySettings} with idempotent method configuration.
-   */
+  /** To create default {@link RetrySettings} for all idempotent method. */
   private static RetrySettings buildIdempotentRetrySettings(BigtableOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
 
@@ -262,12 +254,7 @@ public class BigtableVeneerSettingsFactory {
     return retryBuilder.build();
   }
 
-  /**
-   * To create {@link CredentialsProvider} based on {@link CredentialOptions}.
-   *
-   * @param credentialOptions a {@link CredentialOptions} object.
-   * @throws IOException if any.
-   */
+  /** To create {@link CredentialsProvider} based on {@link CredentialOptions}. */
   private static CredentialsProvider buildCredentialProvider(
       CredentialOptions credentialOptions) throws IOException {
     try {
@@ -283,24 +270,24 @@ public class BigtableVeneerSettingsFactory {
     }
   }
 
+  /** Creates {@link TransportChannelProvider} based on Negotiation type. */
   private static TransportChannelProvider createChannelProvider(String hostname,
       BigtableOptions options) throws IOException{
-    final String endpoint = hostname + ":" + options.getPort();
-
     //In case of plainText Negotiation defaulting to BigtableSession#createChannel.
-    if (options.usePlaintextNegotiation()) {
-      try {
-        ManagedChannel channel = BigtableSession
-            .createChannelPool(hostname, options, options.getChannelCount());
-        return FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
-      } catch (GeneralSecurityException ex) {
-        throw new IOException("Could not create channels.", ex);
-      }
-    }
+//    if (options.usePlaintextNegotiation()) {
+//      try {
+//        ManagedChannel channel = BigtableSession
+//            .createChannelPool(hostname, options, options.getChannelCount());
+//        return FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
+//      } catch (GeneralSecurityException ex) {
+//        throw new IOException("Could not create channels.", ex);
+//      }
+//    }
+
+    final String endpoint = hostname + ":" + options.getPort();
     String userAgent = BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent();
     HeaderProvider headers = FixedHeaderProvider.create(USER_AGENT_KEY.name(), userAgent);
 
-    System.out.println(endpoint);
     return InstantiatingGrpcChannelProvider.newBuilder()
         .setHeaderProvider(headers)
         .setEndpoint(endpoint)
