@@ -274,15 +274,15 @@ public class BigtableVeneerSettingsFactory {
   private static TransportChannelProvider createChannelProvider(String hostname,
       BigtableOptions options) throws IOException{
     //In case of plainText Negotiation defaulting to BigtableSession#createChannel.
-//    if (options.usePlaintextNegotiation()) {
-//      try {
-//        ManagedChannel channel = BigtableSession
-//            .createChannelPool(hostname, options, options.getChannelCount());
-//        return FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
-//      } catch (GeneralSecurityException ex) {
-//        throw new IOException("Could not create channels.", ex);
-//      }
-//    }
+    if (options.usePlaintextNegotiation()) {
+      try {
+        ManagedChannel channel = BigtableSession
+            .createChannelPool(hostname, options, options.getChannelCount());
+        return FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
+      } catch (GeneralSecurityException ex) {
+        throw new IOException("Could not create channels.", ex);
+      }
+    }
 
     final String endpoint = hostname + ":" + options.getPort();
     String userAgent = BigtableVersionInfo.CORE_USER_AGENT + "," + options.getUserAgent();

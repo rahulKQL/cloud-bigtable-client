@@ -34,11 +34,13 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -82,20 +84,29 @@ public class TestBigtableVeneerSettingsFactory {
   @Rule
   public ExpectedException expectException = ExpectedException.none();
 
-  private BigtableOptions bigtableOptions = BigtableOptions.builder()
-      .setProjectId(TEST_PROJECT_ID)
-      .setInstanceId(TEST_INSTANCE_ID)
-      .setUserAgent(TEST_USER_AGENT)
-      .setAdminHost("localhost")
-      .setDataHost("localhost")
-      .setCredentialOptions(CredentialOptions.nullCredential())
-      .setPort(8080)
-      .build();
+  private BigtableOptions bigtableOptions;
 
   private BigtableDataSettings dataSettings;
   private BigtableTableAdminSettings adminSettings;
   private BigtableDataClient dataClient;
   private BigtableTableAdminClient adminClient;
+
+  @Before
+  public void setUp() throws IOException {
+    ServerSocket serverSocket = new ServerSocket(0);
+    final int availablePort = serverSocket.getLocalPort();
+    serverSocket.close();
+
+    bigtableOptions = BigtableOptions.builder()
+        .setProjectId(TEST_PROJECT_ID)
+        .setInstanceId(TEST_INSTANCE_ID)
+        .setUserAgent(TEST_USER_AGENT)
+        .setAdminHost("localhost")
+        .setDataHost("localhost")
+        .setCredentialOptions(CredentialOptions.nullCredential())
+        .setPort(availablePort)
+        .build();
+  }
 
   @After
   public void tearDown() throws Exception{
@@ -109,16 +120,16 @@ public class TestBigtableVeneerSettingsFactory {
   }
 
   public void initializeClients() throws IOException{
-    BigtableOptions bigtableOptions = BigtableOptions.builder()
+    BigtableOptions options = BigtableOptions.builder()
         .setProjectId(ACTUAL_PROJECT_ID)
         .setInstanceId(ACTUAL_INSTANCE_ID)
         .setUserAgent("native-bigtable-test-useragent")
         .build();
 
-    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(bigtableOptions);
+    dataSettings = BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
     dataClient = BigtableDataClient.create(dataSettings);
 
-    adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(bigtableOptions);
+    adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(options);
     adminClient = BigtableTableAdminClient.create(adminSettings);
   }
 
@@ -279,6 +290,10 @@ public class TestBigtableVeneerSettingsFactory {
 
   @Test
   public void testNonRetriableRpcs() throws Exception {
+    ServerSocket serverSocket = new ServerSocket(0);
+    final int availablePort = serverSocket.getLocalPort();
+    serverSocket.close();
+
     CallOptionsConfig callOptions = CallOptionsConfig.builder()
         .setShortRpcTimeoutMs(SHORT_TIMEOUT_MS)
         .setLongRpcTimeoutMs(LONG_TIMEOUT_MS_DEFAULT)
@@ -289,7 +304,7 @@ public class TestBigtableVeneerSettingsFactory {
         .setUserAgent(TEST_USER_AGENT)
         .setAdminHost("localhost")
         .setDataHost("localhost")
-        .setPort(8080)
+        .setPort(availablePort)
         .setCredentialOptions(CredentialOptions.nullCredential())
         .setCallOptionsConfig(callOptions)
         .build();
@@ -399,13 +414,16 @@ public class TestBigtableVeneerSettingsFactory {
 
   @Test
   public void testTableAdminWithNullCredentials() throws IOException {
+    ServerSocket serverSocket = new ServerSocket(0);
+    final int availablePort = serverSocket.getLocalPort();
+    serverSocket.close();
     BigtableOptions options =
         BigtableOptions.builder()
             .setProjectId(TEST_PROJECT_ID).setInstanceId(TEST_INSTANCE_ID)
             .setCredentialOptions(CredentialOptions.nullCredential())
             .setUserAgent(TEST_USER_AGENT)
             .setAdminHost("localhost")
-            .setPort(8080)
+            .setPort(availablePort)
             .build();
     adminSettings = BigtableVeneerSettingsFactory.createTableAdminSettings(options);
     assertTrue(

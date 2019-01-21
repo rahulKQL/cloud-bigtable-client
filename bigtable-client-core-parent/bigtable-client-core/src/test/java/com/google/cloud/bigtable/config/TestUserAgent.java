@@ -152,7 +152,7 @@ public class TestUserAgent {
    * @throws Exception
    */
   @Ignore
-  @Test
+  //@Test
   public void testPlainTextAndSSLServer() throws Exception{
     ServerSocket serverSocket = new ServerSocket(0);
     final int availablePort = serverSocket.getLocalPort();
