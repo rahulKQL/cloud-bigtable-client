@@ -260,7 +260,7 @@ public class BigtableDataClientWrapper implements IBigtableDataClient {
    * @param response an instance of {@link ReadModifyWriteRowResponse} type.
    * @return an instance of {@link Row}.
    */
-  private Row transformResponse(ReadModifyWriteRowResponse response) {
+  public static Row transformResponse(ReadModifyWriteRowResponse response) {
     ImmutableList.Builder<RowCell> rowCells  = ImmutableList.builder();
 
     for (Family family : response.getRow().getFamiliesList()) {

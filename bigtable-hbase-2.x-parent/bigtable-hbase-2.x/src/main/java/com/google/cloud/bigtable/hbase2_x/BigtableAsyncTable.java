@@ -15,10 +15,13 @@ d * Copyright 2017 Google Inc. All Rights Reserved.
  */
 package com.google.cloud.bigtable.hbase2_x;
 
+import static com.google.cloud.bigtable.hbase2_x.FutureUtils.toCompletableFuture;
 import static java.util.stream.Collectors.toList;
 
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Status;
@@ -49,8 +52,6 @@ import org.apache.hadoop.hbase.client.ServiceCaller;
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics;
 
 import com.google.bigtable.v2.CheckAndMutateRowRequest;
-import com.google.bigtable.v2.ReadModifyWriteRowRequest;
-import com.google.bigtable.v2.ReadModifyWriteRowResponse;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.grpc.BigtableSession;
@@ -84,6 +85,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
 
   private final BigtableAsyncConnection asyncConnection;
   private final BigtableDataClient client;
+  private final IBigtableDataClient clientWrapper;
   private final HBaseRequestAdapter hbaseAdapter;
   private final TableName tableName;
   private BatchExecutor batchExecutor;
@@ -95,6 +97,7 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
     this.asyncConnection = asyncConnection;
     BigtableSession session = asyncConnection.getSession();
     this.client = new BigtableDataClient(session.getDataClient());
+    this.clientWrapper = session.getClientWrapper();
     this.hbaseAdapter = hbaseAdapter;
     this.tableName = hbaseAdapter.getTableName();
     // Once the IBigtableDataClient interface is implemented this will be removed
@@ -115,12 +118,13 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
    */
   @Override
   public CompletableFuture<Result> append(Append append) {
-    ReadModifyWriteRowRequest request = hbaseAdapter.adapt(append).toProto(requestContext);
-    Function<? super ReadModifyWriteRowResponse, ? extends Result> adaptRowFunction = response ->
+    ReadModifyWriteRow request = hbaseAdapter.adapt(append);
+    Function<? super com.google.cloud.bigtable.data.v2.models.Row, ? extends Result> adaptRowFunction = response ->
         append.isReturnResults()
-            ? Adapters.ROW_ADAPTER.adaptResponse(response.getRow())
+            ? Adapters.ROW_ADAPTER.adaptResponse(response)
             : null;
-    return client.readModifyWriteRowAsync(request).thenApply(adaptRowFunction);
+    return toCompletableFuture(clientWrapper.readModifyWriteRowAsync(request))
+        .thenApply(adaptRowFunction);
   }
 
   /**
@@ -363,8 +367,8 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
    */
   @Override
   public CompletableFuture<Result> increment(Increment increment) {
-    return client.readModifyWriteRowAsync(hbaseAdapter.adapt(increment).toProto(requestContext))
-        .thenApply(response -> Adapters.ROW_ADAPTER.adaptResponse(response.getRow()));
+    return toCompletableFuture(clientWrapper.readModifyWriteRowAsync(hbaseAdapter.adapt(increment)))
+        .thenApply(response -> Adapters.ROW_ADAPTER.adaptResponse(response));
   }
 
   /**

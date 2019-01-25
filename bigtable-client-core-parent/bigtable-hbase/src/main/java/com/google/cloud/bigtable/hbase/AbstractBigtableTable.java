@@ -17,6 +17,7 @@ package com.google.cloud.bigtable.hbase;
 
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
+import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.BigtableDataClientWrapper;
 import io.opencensus.common.Scope;
@@ -66,8 +67,6 @@ import org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException;
 import com.google.bigtable.v2.CheckAndMutateRowRequest;
 import com.google.bigtable.v2.CheckAndMutateRowResponse;
 import com.google.bigtable.v2.MutateRowRequest;
-import com.google.bigtable.v2.ReadModifyWriteRowRequest;
-import com.google.bigtable.v2.ReadModifyWriteRowResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.grpc.BigtableDataClient;
@@ -504,12 +503,12 @@ public abstract class AbstractBigtableTable implements Table {
     LOG.trace("append(Append)");
     Span span = TRACER.spanBuilder("BigtableTable.append").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      ReadModifyWriteRowRequest request = hbaseAdapter.adapt(append).toProto(requestContext);
-      ReadModifyWriteRowResponse response = client.readModifyWriteRow(request);
+      com.google.cloud.bigtable.data.v2.models.Row response =
+          clientWrapper.readModifyWriteRow(hbaseAdapter.adapt(append));
       // The bigtable API will always return the mutated results. In order to maintain
       // compatibility, simply return null when results were not requested.
       if (append.isReturnResults()) {
-        return Adapters.ROW_ADAPTER.adaptResponse(response.getRow());
+        return Adapters.ROW_ADAPTER.adaptResponse(response);
       } else {
         return null;
       }
@@ -527,8 +526,8 @@ public abstract class AbstractBigtableTable implements Table {
     LOG.trace("increment(Increment)");
     Span span = TRACER.spanBuilder("BigtableTable.increment").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      ReadModifyWriteRowRequest request = hbaseAdapter.adapt(increment).toProto(requestContext);
-      return Adapters.ROW_ADAPTER.adaptResponse(client.readModifyWriteRow(request).getRow());
+      ReadModifyWriteRow request = hbaseAdapter.adapt(increment);
+      return Adapters.ROW_ADAPTER.adaptResponse(clientWrapper.readModifyWriteRow(request));
     } catch (Throwable t) {
       span.setStatus(Status.UNKNOWN);
       throw logAndCreateIOException("increment", increment.getRow(), t);
