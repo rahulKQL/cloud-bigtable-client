@@ -15,7 +15,9 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -208,9 +210,9 @@ public class BatchExecutor {
       if (row instanceof Get) {
         return bulkOperation.bulkRead.add(requestAdapter.adapt((Get) row).toProto(requestContext));
       } else if (row instanceof Put) {
-        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((Put) row));
+        return bulkOperation.bulkMutation.add(toEntry(requestAdapter.adaptEntry((Put) row)));
       } else if (row instanceof Delete) {
-        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((Delete) row));
+        return bulkOperation.bulkMutation.add(toEntry(requestAdapter.adaptEntry((Delete) row)));
       } else if (row instanceof Append) {
         return asyncExecutor.readModifyWriteRowAsync(
             requestAdapter.adapt((Append) row).toProto(requestContext));
@@ -218,7 +220,7 @@ public class BatchExecutor {
         return asyncExecutor.readModifyWriteRowAsync(
             requestAdapter.adapt((Increment) row).toProto(requestContext));
       } else if (row instanceof RowMutations) {
-        return bulkOperation.bulkMutation.add(requestAdapter.adaptEntry((RowMutations) row));
+        return bulkOperation.bulkMutation.add(toEntry(requestAdapter.adaptEntry((RowMutations) row)));
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -345,5 +347,9 @@ public class BatchExecutor {
       exists[index] = !getResults[index].isEmpty();
     }
     return exists;
+  }
+
+  private MutateRowsRequest.Entry toEntry(RowMutation rowMutation) {
+    return rowMutation.toBulkProto(requestContext).getEntries(0);
   }
 }
