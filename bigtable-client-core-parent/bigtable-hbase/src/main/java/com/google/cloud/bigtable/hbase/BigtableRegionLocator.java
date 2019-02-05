@@ -15,6 +15,7 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import com.google.cloud.bigtable.core.IBigtableDataClient;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -47,7 +48,8 @@ public abstract class BigtableRegionLocator extends AbstractBigtableRegionLocato
    * @param options a {@link com.google.cloud.bigtable.config.BigtableOptions} object.
    * @param client a {@link com.google.cloud.bigtable.grpc.BigtableDataClient} object.
    */
-  public BigtableRegionLocator(TableName tableName, BigtableOptions options, BigtableDataClient client) {
+  public BigtableRegionLocator(TableName tableName, BigtableOptions options,
+      IBigtableDataClient client) {
     super(tableName,options,client);
   }
 

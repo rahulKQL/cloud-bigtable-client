@@ -17,6 +17,8 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import com.google.cloud.bigtable.core.IBigtableDataClient;
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -54,12 +56,13 @@ public abstract class AbstractBigtableRegionLocator {
 
   protected final TableName tableName;
   private ListenableFuture<List<HRegionLocation>> regionsFuture;
-  private final BigtableDataClient client;
+  private final IBigtableDataClient client;
   private final SampledRowKeysAdapter adapter;
   private final BigtableTableName bigtableTableName;
   private long regionsFetchTimeMillis;
   
-  public AbstractBigtableRegionLocator (TableName tableName, BigtableOptions options, BigtableDataClient client) {
+  public AbstractBigtableRegionLocator (TableName tableName, BigtableOptions options,
+      IBigtableDataClient client) {
     this.tableName = tableName;
     this.client = client;
     this.bigtableTableName = options.getInstanceName().toTableName(tableName.getNameAsString());
@@ -80,16 +83,13 @@ public abstract class AbstractBigtableRegionLocator {
       return this.regionsFuture;
     }
 
-    SampleRowKeysRequest.Builder request = SampleRowKeysRequest.newBuilder();
-    request.setTableName(bigtableTableName.toString());
-    LOG.debug("Sampling rowkeys for table %s", request.getTableName());
-
     try {
-      ListenableFuture<List<SampleRowKeysResponse>> future = client.sampleRowKeysAsync(request.build());
+      ListenableFuture<List<KeyOffset>> future =
+          client.sampleRowKeysAsync(bigtableTableName.getTableId());
       this.regionsFuture = Futures
-          .transform(future, new Function<List<SampleRowKeysResponse>, List<HRegionLocation>>() {
+          .transform(future, new Function<List<KeyOffset>, List<HRegionLocation>>() {
             @Override
-            public List<HRegionLocation> apply(@Nullable List<SampleRowKeysResponse> input) {
+            public List<HRegionLocation> apply(@Nullable List<KeyOffset> input) {
               return adapter.adaptResponse(input);
             }
           }, MoreExecutors.directExecutor());

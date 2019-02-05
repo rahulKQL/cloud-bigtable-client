@@ -15,6 +15,7 @@
  */
 package org.apache.hadoop.hbase.client;
 
+import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -277,7 +278,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
 
   @Override
   public AsyncTableRegionLocator getRegionLocator(TableName tableName) {
-    return new BigtableAsyncTableRegionLocator(tableName, options, this.session.getDataClient());
+    return new BigtableAsyncTableRegionLocator(tableName, options, this.session.getClientWrapper());
   }
 
   @Override
@@ -334,9 +335,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
   @Override
   public List<HRegionInfo> getAllRegionInfos(TableName tableName) throws IOException {
     ServerName serverName = ServerName.valueOf(options.getDataHost(), options.getPort(), 0);
-    SampleRowKeysRequest.Builder request = SampleRowKeysRequest.newBuilder();
-    request.setTableName(options.getInstanceName().toTableNameStr(tableName.getNameAsString()));
-    List<SampleRowKeysResponse> sampleRowKeyResponse = this.session.getDataClient().sampleRowKeys(request.build());
+    List<KeyOffset> sampleRowKeyResponse = this.session.getClientWrapper().sampleRowKeys(tableName.getNameAsString());
 
     return getSampledRowKeysAdapter(tableName, serverName).adaptResponse(sampleRowKeyResponse)
         .stream()
