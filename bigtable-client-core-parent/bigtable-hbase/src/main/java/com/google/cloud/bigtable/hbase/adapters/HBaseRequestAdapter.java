@@ -16,7 +16,6 @@
 package com.google.cloud.bigtable.hbase.adapters;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.MutationApi;
 import com.google.cloud.bigtable.data.v2.models.Query;
@@ -72,7 +71,6 @@ public class HBaseRequestAdapter {
   protected final MutationAdapters mutationAdapters;
   protected final TableName tableName;
   protected final BigtableTableName bigtableTableName;
-  protected final RequestContext requestContext;
 
   /**
    * <p>Constructor for HBaseRequestAdapter.</p>
@@ -97,9 +95,7 @@ public class HBaseRequestAdapter {
                              MutationAdapters mutationAdapters) {
     this(tableName,
         options.getInstanceName().toTableName(tableName.getQualifierAsString()),
-        mutationAdapters,
-        RequestContext
-            .create(options.getProjectId(), options.getInstanceId(), options.getAppProfileId()));
+        mutationAdapters);
   }
 
 
@@ -113,16 +109,14 @@ public class HBaseRequestAdapter {
   @VisibleForTesting
   HBaseRequestAdapter(TableName tableName,
                               BigtableTableName bigtableTableName,
-                              MutationAdapters mutationAdapters,
-                              RequestContext requestContext) {
+                              MutationAdapters mutationAdapters) {
     this.tableName = tableName;
     this.bigtableTableName = bigtableTableName;
     this.mutationAdapters = mutationAdapters;
-    this.requestContext = requestContext;
   }
 
   public HBaseRequestAdapter withServerSideTimestamps(){
-    return new HBaseRequestAdapter(tableName, bigtableTableName, mutationAdapters.withServerSideTimestamps(), requestContext);
+    return new HBaseRequestAdapter(tableName, bigtableTableName, mutationAdapters.withServerSideTimestamps());
   }
 
   /**
