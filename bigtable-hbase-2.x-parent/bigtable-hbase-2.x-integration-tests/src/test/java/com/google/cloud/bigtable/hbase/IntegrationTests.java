@@ -81,7 +81,7 @@ import java.util.concurrent.TimeUnit;
 public class IntegrationTests {
 
   private static final int TIME_OUT_MINUTES =
-      Integer.getInteger("integration.test.timeout.minutes", 3);
+      Integer.getInteger("integration.test.timeout.minutes", 8);
 
   @ClassRule
   public static Timeout timeoutRule = new Timeout(TIME_OUT_MINUTES, TimeUnit.MINUTES);

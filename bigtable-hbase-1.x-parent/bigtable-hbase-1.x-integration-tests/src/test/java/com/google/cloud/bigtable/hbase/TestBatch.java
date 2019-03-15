@@ -15,9 +15,43 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import com.google.cloud.bigtable.hbase.test_env.SharedTestEnvRule;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.hbase.client.Append;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class TestBatch extends AbstractTestBatch {
+
+  @ClassRule
+  public static Timeout timeoutRule = new Timeout(8, TimeUnit.MINUTES);
+
+  @ClassRule
+  public static SharedTestEnvRule sharedTestEnvRule = SharedTestEnvRule.getInstance();
+
+  @Test
+  public void testBatchDoesntHang() throws Exception {
+    Table table;
+    try(Connection closedConnection = createNewConnection()) {
+      table = closedConnection.getTable(sharedTestEnv.getDefaultTableName());
+    }
+
+    try {
+      table.batch(Arrays.asList(new Get(Bytes.toBytes("key"))), new Object[1]);
+      Assert.fail("Expected an exception");
+    } catch(Exception e) {
+      Assert.assertNotNull(e);
+    }
+
+  }
+
   protected void appendAdd(Append append, byte[] columnFamily, byte[] qualifier, byte[] value) {
     append.add(columnFamily, qualifier, value);
   }

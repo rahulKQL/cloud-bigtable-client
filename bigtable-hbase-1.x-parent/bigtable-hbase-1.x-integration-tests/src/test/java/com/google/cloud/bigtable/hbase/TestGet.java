@@ -49,12 +49,6 @@ import org.junit.rules.Timeout;
 
 public class TestGet extends AbstractTest {
 
-  @ClassRule
-  public static Timeout timeoutRule = new Timeout(8, TimeUnit.MINUTES);
-
-  @ClassRule
-  public static SharedTestEnvRule sharedTestEnvRule = SharedTestEnvRule.getInstance();
-
   /**
    * Requirement 3.2 - If a column family is requested, but no qualifier, all columns in that family
    * are returned

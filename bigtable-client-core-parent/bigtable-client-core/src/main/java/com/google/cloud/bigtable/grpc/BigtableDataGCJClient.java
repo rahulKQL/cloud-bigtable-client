@@ -31,6 +31,7 @@ import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.FlatRowAdapter;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.ResumingStreamingResultScanner;
+import com.google.cloud.bigtable.grpc.scanner.RowResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
 import com.google.common.collect.ImmutableList;
 import io.grpc.stub.StreamObserver;
@@ -98,34 +99,7 @@ public class BigtableDataGCJClient implements IBigtableDataClient {
   @Override
   public ResultScanner<Row> readRows(Query request) {
     final ServerStream<Row> response = delegate.readRows(request);
-    final Iterator<Row> iterator = response.iterator();
-    return new ResultScanner<Row>() {
-
-      @Override
-      public Row next() throws IOException {
-        return iterator.next();
-      }
-
-      @Override
-      public Row[] next(int count) throws IOException {
-        ImmutableList.Builder<Row> builder = ImmutableList.builder();
-        for (int i = 0; iterator.hasNext() && i < count; i++) {
-          builder.add(iterator.next());
-        }
-        return builder.build().toArray(new Row[0]);
-      }
-
-      @Override
-      public int available() {
-        //TODO(rahulkql): ServerStream has a constant buffer of only 1 item.
-        return response.isReceiveReady() ? 1 : 0;
-      }
-
-      @Override
-      public void close() throws IOException {
-        response.cancel();
-      }
-    };
+    return new RowResultScanner<>(response, new Row[0]);
   }
 
   @Override
@@ -142,34 +116,7 @@ public class BigtableDataGCJClient implements IBigtableDataClient {
   public ResultScanner<FlatRow> readFlatRows(Query request) {
     final ServerStream<FlatRow> stream =
         delegate.readRowsCallable(new FlatRowAdapter()).call(request);
-    final Iterator<FlatRow> iterator = stream.iterator();
-    return new ResultScanner<FlatRow>() {
-
-      @Override
-      public FlatRow next() throws IOException {
-        return iterator.next();
-      }
-
-      @Override
-      public FlatRow[] next(int count) throws IOException {
-        ImmutableList.Builder<FlatRow> builder = ImmutableList.builder();
-        for (int i = 0; iterator.hasNext() && i < count; i++) {
-          builder.add(iterator.next());
-        }
-        return builder.build().toArray(new FlatRow[0]);
-      }
-
-      @Override
-      public int available() {
-        //TODO(rahulkql): ServerStream has a constant buffer of only 1 item.
-        return stream.isReceiveReady() ? 1 : 0;
-      }
-
-      @Override
-      public void close() throws IOException {
-        stream.cancel();
-      }
-    };
+    return new RowResultScanner<>(stream, new FlatRow[0]);
   }
 
   private ResultScanner<FlatRow> readFlatRowsV2(Query request){

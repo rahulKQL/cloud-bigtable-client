@@ -2008,7 +2008,7 @@ public abstract class AbstractTestFilters extends AbstractTest {
     Assert.assertEquals(Bytes.toString(expectedKey),  Bytes.toString(current.getRow()));
   }
 
-  @Test
+
   public void testInterleaveNoDuplicateCells() throws IOException {
     String rowKeyPrefix = dataHelper.randomString("interleave-no-dups-");
     byte[] qualA = dataHelper.randomData("interleave-no-dups-qual");
