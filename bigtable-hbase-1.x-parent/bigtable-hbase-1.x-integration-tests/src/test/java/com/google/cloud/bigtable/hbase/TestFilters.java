@@ -19,63 +19,24 @@ import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.F
 import com.google.bigtable.repackaged.com.google.protobuf.ByteString;
 import com.google.cloud.bigtable.hbase.filter.BigtableFilter;
 import com.google.cloud.bigtable.hbase.filter.TimestampRangeFilter;
-import com.google.cloud.bigtable.hbase.test_env.SharedTestEnvRule;
-import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.hbase.filter.ColumnPrefixFilter;
 import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
-import org.junit.rules.Timeout;
 
 import static com.google.cloud.bigtable.hbase.test_env.SharedTestEnvRule.COLUMN_FAMILY;
 
 public class TestFilters extends AbstractTestFilters {
-
-  @ClassRule
-  public static Timeout timeoutRule = new Timeout(8, TimeUnit.MINUTES);
-
-  @ClassRule
-  public static SharedTestEnvRule sharedTestEnvRule = SharedTestEnvRule.getInstance();
-
-  @Test
-  public void testInterleaveNoDuplicateCells() throws IOException {
-    String rowKeyPrefix = dataHelper.randomString("interleave-no-dups-");
-    byte[] qualA = dataHelper.randomData("interleave-no-dups-qual");
-    Table table = addDataForTesting(rowKeyPrefix, qualA);
-
-    ColumnPrefixFilter prefixFilter1 =
-        new ColumnPrefixFilter(Bytes.toBytes("interleave-no-dups"));
-    ColumnPrefixFilter prefixFilter2 =
-        new ColumnPrefixFilter(Bytes.toBytes("interleave-no-dups-qual"));
-    FilterList filterList = new FilterList(
-        FilterList.Operator.MUST_PASS_ONE,
-        prefixFilter1,
-        prefixFilter2);
-    Scan scan = new Scan().withStartRow(Bytes.toBytes(rowKeyPrefix));
-    scan.setFilter(filterList);
-
-    try (ResultScanner scanner = table.getScanner(scan)) {
-      for (Result result: scanner) {
-        Assert.assertEquals(1,  result.getColumnCells(COLUMN_FAMILY, qualA).size());
-      }
-    }
-  }
-
 
   @Test
   public void testTimestampRangeFilter() throws IOException {

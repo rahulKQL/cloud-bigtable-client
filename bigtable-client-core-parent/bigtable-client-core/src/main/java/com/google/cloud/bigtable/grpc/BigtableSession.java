@@ -255,7 +255,8 @@ public class BigtableSession implements Closeable {
     dataClient.setCallOptionsFactory(callOptionsFactory);
     BigtableDataSettings dataSettings =
         BigtableVeneerSettingsFactory.createBigtableDataSettings(options);
-    dataGCJClient = new BigtableDataGCJClient(com.google.cloud.bigtable.data.v2.BigtableDataClient.create(dataSettings));
+    dataGCJClient =
+        new BigtableDataGCJClient(com.google.cloud.bigtable.data.v2.BigtableDataClient.create(dataSettings));
 
     // Async operations can run amok, so they need to have some throttling. The throttling is
     // achieved through a ThrottlingClientInterceptor.  gRPC wraps ClientInterceptors in Channels,
@@ -608,6 +609,15 @@ public class BigtableSession implements Closeable {
   @Override
   public synchronized void close() throws IOException {
     watchdog.stop();
+
+    try {
+      dataGCJClient.close();
+      if (adminGCJClient != null) {
+        adminGCJClient.close();
+      }
+    } catch (Exception ex) {
+      throw new IOException(ex);
+    }
 
     if (managedChannels.isEmpty()) {
       return;

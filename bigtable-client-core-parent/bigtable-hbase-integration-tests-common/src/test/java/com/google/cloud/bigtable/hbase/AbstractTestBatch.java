@@ -329,6 +329,7 @@ public abstract class AbstractTestBatch extends AbstractTest {
     table.close();
   }
 
+  @Test
   public void testBatchDoesntHang() throws Exception {
     Table table;
     try(Connection closedConnection = createNewConnection()) {

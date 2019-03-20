@@ -16,7 +16,6 @@
 package com.google.cloud.bigtable.grpc;
 
 import com.google.api.core.ApiFuture;
-import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.core.IBulkMutation;
@@ -30,9 +29,7 @@ import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.FlatRowAdapter;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.bigtable.grpc.scanner.ResumingStreamingResultScanner;
 import com.google.cloud.bigtable.grpc.scanner.RowResultScanner;
-import com.google.cloud.bigtable.grpc.scanner.ScanHandler;
 import com.google.common.collect.ImmutableList;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
@@ -43,7 +40,7 @@ import java.util.List;
  * This class implements existing {@link com.google.cloud.bigtable.core.IBigtableDataClient} operations with
  * Google-cloud-java's {@link com.google.cloud.bigtable.data.v2.BigtableDataClient}.
  */
-public class BigtableDataGCJClient implements IBigtableDataClient {
+public class BigtableDataGCJClient implements IBigtableDataClient, AutoCloseable {
 
   private final BigtableDataClient delegate;
 
@@ -126,7 +123,6 @@ public class BigtableDataGCJClient implements IBigtableDataClient {
 
       @Override
       public void close() throws IOException {
-        System.out.println("Closed is called");
       }
 
       @Override
@@ -159,5 +155,10 @@ public class BigtableDataGCJClient implements IBigtableDataClient {
   public void readFlatRowsAsync(Query request, StreamObserver<FlatRow> observer) {
     //TODO: figure out to convert StreamObserver to ResponseObserver.
     //delegate.readRowsCallable(new FlatRowAdapter()).call(request, observer);
+  }
+
+  @Override
+  public void close() throws Exception {
+    delegate.close();
   }
 }
