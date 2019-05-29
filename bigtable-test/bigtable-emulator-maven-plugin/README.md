@@ -9,7 +9,7 @@ It provides 3 maven goals:
 * stop: stops the emulator
 * run: like start, but runs the emulator in foreground
 
-_Note: You may checkout [Google-cloud-Bigtable-emulator](#google-cloud-bigtable-emulator)._
+_Note: You may check out [Google-cloud-Bigtable-emulator](#google-cloud-bigtable-emulator)._
 
 Usage:
 
@@ -64,14 +64,14 @@ Usage:
   ```
   Or, for hbase:
   ```java
-      Connection connection = BigtableConfiguration.connect("fakeproject", "fakeinstace");
+      Connection connection = BigtableConfiguration.connect("fakeproject", "fakeinstance");
    ```
 - If `maven.test.skip` is set to true the emulator will not start. The emulator can also be controlled directly 
   by setting the boolean property `bigtable.emulator.skip`.
 
-- While using Docker, You can use container's `host` and `port` details for emulator:
+- While using Docker, you can use the container's `host` and `port` details for emulator:
   ```java
-  GenericContainer container = // Container Contorller
+  GenericContainer container = // Container Controller
 
   Configuration config = BigtableConfiguration.configure("fakeproject", "fakeinstance");
   config.set(container.getContainerIpAddress() + ":" + container.getMappedPort(TEST_HTTP_PORT));
@@ -81,13 +81,13 @@ Usage:
 
 ## [Google-cloud-Bigtable-emulator](https://github.com/googleapis/google-cloud-java/tree/master/google-cloud-testing/google-cloud-bigtable-emulator)
 
-  This is the latest bigtable emulator, It includes below features over `bigtable-emulator-maven-plugin`:
+  This is the latest bigtable emulator. It includes below features over `bigtable-emulator-maven-plugin`:
   - Supports JUnit Rules
   - Allows for direct programmatic control
   - Bundles the emulator binary
   - You can use a direct emulator wrapper as (i.e. [Emulator.java](https://github.com/googleapis/google-cloud-java/blob/master/google-cloud-testing/google-cloud-bigtable-emulator/src/main/java/com/google/cloud/bigtable/emulator/v2/Emulator.java))
 
-  Example usage with Cloud-Bigtable-Client:
+  Example of usage with `Cloud-Bigtable-Client`:
   ```java
   @Rule
   public final BigtableEmulatorRule bigtableEmulator = BigtableEmulatorRule.create();
