@@ -226,6 +226,7 @@ public class BigtableSession implements Closeable {
         !Strings.isNullOrEmpty(options.getInstanceId()), INSTANCE_ID_EMPTY_OR_NULL);
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(options.getUserAgent()), USER_AGENT_EMPTY_OR_NULL);
+    BigtableVersionInfo.isVersionStable();
     LOG.info(
         "Opening session for projectId %s, instanceId %s, " + "on data host %s, admin host %s.",
         options.getProjectId(),
