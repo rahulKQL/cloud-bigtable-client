@@ -17,28 +17,29 @@ package com.google.cloud.bigtable.core;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
 import java.io.IOException;
 
 /**
- * Interface to support batching multiple {@link RowMutation} request into a single grpc request.
+ * Interface to support batching multiple {@link RowMutationEntry} request into a single grpc
+ * request.
  */
 @InternalApi("For internal usage only")
 public interface IBulkMutation extends AutoCloseable {
 
   /**
-   * Adds a {@link RowMutation} to the underlying IBulkMutation mechanism.
+   * Adds a {@link RowMutationEntry} to the underlying IBulkMutation mechanism.
    *
-   * @param rowMutation The {@link RowMutation} to add.
+   * @param rowMutation The RowMutationEntry which holds row mutation details.
    * @return a {@link ApiFuture} of type {@link Void} will be set when request is successful
    *     otherwise exception will be thrown.
    */
-  ApiFuture<Void> add(RowMutation rowMutation);
+  ApiFuture<Void> add(RowMutationEntry rowMutation);
 
-  /** Sends any outstanding {@link RowMutation}s, present in the current batch. */
+  /** Sends asynchronously any outstanding RowMutationEntry, present in the current batch. */
   void sendUnsent();
 
-  /** Sends any outstanding {@link RowMutation} and wait until all requests are complete. */
+  /** Sends any outstanding RowMutationEntry and blocks until all requests are complete. */
   void flush() throws InterruptedException;
 
   /** Closes this bulk Mutation and prevents from mutating any more elements */
