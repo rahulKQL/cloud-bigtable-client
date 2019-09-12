@@ -15,6 +15,8 @@
  */
 package com.google.cloud.bigtable.beam;
 
+import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_GCJ_CLIENT;
+
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableVersionInfo;
 import com.google.bigtable.repackaged.com.google.common.base.Preconditions;
@@ -235,6 +237,9 @@ public class CloudBigtableConfiguration implements Serializable {
         config.set(entry.getKey(), entry.getValue().get());
       }
     }
+
+    // respecting user defined value for GCJ client usage.
+    config.setIfUnset(BIGTABLE_USE_GCJ_CLIENT, "true");
     setUserAgent(config);
     return config;
   }

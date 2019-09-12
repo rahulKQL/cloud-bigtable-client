@@ -19,6 +19,7 @@ import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.Bi
 import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableOptions.BIGTABLE_BATCH_DATA_HOST_DEFAULT;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_ADMIN_HOST_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_HOST_KEY;
+import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_GCJ_CLIENT;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.INSTANCE_ID_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.PROJECT_ID_KEY;
 
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.regex.Pattern;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -60,6 +62,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.FirstKeyOnlyFilter;
 import org.apache.hadoop.hbase.shaded.org.apache.commons.lang.RandomStringUtils;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -103,6 +106,7 @@ public class CloudBigtableBeamITTest {
 
   private static final String STAGING_LOCATION_KEY = "dataflowStagingLocation";
   private static final String ZONE_ID_KEY = "dataflowZoneId";
+  private static final String TABLE_NAME_FORMAT = "test-bigtableIO-100K-";
 
   private static final String projectId = System.getProperty(PROJECT_ID_KEY);
   private static final String instanceId = System.getProperty(INSTANCE_ID_KEY);
@@ -116,7 +120,7 @@ public class CloudBigtableBeamITTest {
   private static final String adminEndpoint =
       System.getProperty(BIGTABLE_ADMIN_HOST_KEY, BIGTABLE_ADMIN_HOST_DEFAULT);
   private static final String TABLE_NAME_STR =
-      System.getProperty("tableName", "BeamCloudBigtableIOIntegrationTest");
+      System.getProperty("tableName", TABLE_NAME_FORMAT + System.currentTimeMillis());
 
   private static final TableName TABLE_NAME = TableName.valueOf(TABLE_NAME_STR);
   private static final byte[] FAMILY = Bytes.toBytes("test-family");
@@ -136,8 +140,7 @@ public class CloudBigtableBeamITTest {
   @Before
   public void setUp() throws IOException {
     Configuration config = BigtableConfiguration.configure(projectId, instanceId);
-    config.set(BIGTABLE_HOST_KEY, dataEndpoint);
-    config.set(BIGTABLE_ADMIN_HOST_KEY, adminEndpoint);
+    config.set(BIGTABLE_USE_GCJ_CLIENT, "true");
     try (Connection conn = BigtableConfiguration.connect(config);
         Admin admin = conn.getAdmin()) {
       if (admin.tableExists(TABLE_NAME)) {
@@ -145,6 +148,22 @@ public class CloudBigtableBeamITTest {
       }
       admin.createTable(new HTableDescriptor(TABLE_NAME).addFamily(new HColumnDescriptor(FAMILY)));
       LOG.info("Created a table to perform batching: %s", TABLE_NAME);
+    }
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    Configuration config = BigtableConfiguration.configure(projectId, instanceId);
+    config.set(BIGTABLE_USE_GCJ_CLIENT, "true");
+    try (Connection conn = BigtableConfiguration.connect(config);
+        Admin admin = conn.getAdmin()) {
+
+      TableName[] tableNames = admin.listTableNames(Pattern.compile(TABLE_NAME_FORMAT + "\\d+"));
+
+      for (TableName tableName : tableNames) {
+        admin.deleteTable(tableName);
+        LOG.info("Deleted test table %s after pipeline execution", tableName.getNameAsString());
+      }
     }
   }
 

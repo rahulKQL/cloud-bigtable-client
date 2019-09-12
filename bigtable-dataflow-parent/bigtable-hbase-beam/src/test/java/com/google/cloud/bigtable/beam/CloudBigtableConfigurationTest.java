@@ -174,6 +174,7 @@ public class CloudBigtableConfigurationTest {
     expected.add("null:google.bigtable.project.id=my_project");
     expected.add("null:google.bigtable.instance.id=instance");
     expected.add("null:inaccessible=Unavailable during pipeline construction");
+    expected.add("null:google.bigtable.use.gcj.client=true");
     expected.add("null:bigtableClientVersion=" + BigtableVersionInfo.CLIENT_VERSION);
 
     Assert.assertThat(builder.itemStrings, containsInAnyOrder(expected.toArray()));
