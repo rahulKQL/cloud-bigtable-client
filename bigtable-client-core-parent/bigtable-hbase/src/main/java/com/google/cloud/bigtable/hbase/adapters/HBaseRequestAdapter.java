@@ -45,6 +45,7 @@ import org.apache.hadoop.hbase.client.Scan;
  * @author sduskis
  * @version $Id: $Id
  */
+@InternalApi("for internal usage only")
 public class HBaseRequestAdapter {
 
   public static class MutationAdapters {

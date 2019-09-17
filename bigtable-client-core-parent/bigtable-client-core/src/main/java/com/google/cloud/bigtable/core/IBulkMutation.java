@@ -36,7 +36,7 @@ public interface IBulkMutation extends AutoCloseable {
    */
   ApiFuture<Void> add(RowMutationEntry rowMutation);
 
-  /** Sends asynchronously any outstanding RowMutationEntry, present in the current batch. */
+  /** Sends any outstanding entry, present in the current batch but doesn't wait for response. */
   void sendUnsent();
 
   /** Sends any outstanding RowMutationEntry and blocks until all requests are complete. */
