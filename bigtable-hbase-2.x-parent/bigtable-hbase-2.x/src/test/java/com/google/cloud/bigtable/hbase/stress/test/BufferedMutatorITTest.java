@@ -88,13 +88,14 @@ public class BufferedMutatorITTest {
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .filter(nonZeroMatcher)
         .build()
-        .start(1, TimeUnit.SECONDS);
+        .start(50, TimeUnit.SECONDS);
   }
 
   @Before
   public void setUp() throws IOException {
     Configuration conf = BigtableConfiguration.configure(projectId, instanceId);
     conf.set(BigtableOptionsFactory.BIGTABLE_USE_BULK_API, "true");
+    conf.set(BigtableOptionsFactory.BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL, "true");
     conf.set(BigtableOptionsFactory.BIGTABLE_USE_GCJ_CLIENT, useGCJClient.toString());
     connection = BigtableConfiguration.connect(conf);
 
@@ -104,6 +105,7 @@ public class BufferedMutatorITTest {
         TableDescriptorBuilder.newBuilder(tableName)
             .setColumnFamily(ColumnFamilyDescriptorBuilder.newBuilder(COL_FAMILY).build())
             .build());
+    LOG.info("Table created with tableName: " + tableName.getNameAsString());
     assertTrue(admin.tableExists(tableName));
   }
 
@@ -147,13 +149,13 @@ public class BufferedMutatorITTest {
       LOG.info(String.format("Start Time: %d ms", startTime));
       try (BufferedMutator bulkMutation = conn.getBufferedMutator(tableName)) {
         final Timer.Context context = timer.time();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
           final String rowKeyPrefix = "test-rowKey" + randomAlphanumeric(10);
           final String qualifier = "testQualifier-" + randomAlphanumeric(5);
           final byte[] value = Bytes.toBytes("testValue-" + randomAlphanumeric(10));
 
           ImmutableList.Builder<Put> builder = ImmutableList.builder();
-          for (int j = 0; j < 10_000; j++) {
+          for (int j = 0; j < 100_000; j++) {
             builder.add(
                 new Put(Bytes.toBytes(rowKeyPrefix + i))
                     .addColumn(COL_FAMILY, Bytes.toBytes(qualifier + "-" + i), 10_000L, value));
