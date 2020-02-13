@@ -27,12 +27,16 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.core.InternalExtensionOnly;
 import com.google.auth.Credentials;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
+import com.google.cloud.bigtable.admin.v2.stub.BigtableTableAdminStubSettings;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CallOptionsConfig;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.config.RetryOptions;
+import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import com.google.common.base.Preconditions;
 import io.grpc.Status;
 import java.io.FileInputStream;
@@ -350,6 +354,84 @@ public class BigtableOptionsFactory {
       bigtableOptionsBuilder.setUseGCJClient(Boolean.parseBoolean(useGcjClientStr));
     }
     return bigtableOptionsBuilder.build();
+  }
+
+  /** Utility to convert {@link Configuration} to {@link BigtableDataSettings}. */
+  // TODO: Need to copy over the defaults of BigtableOptions to BigtableData/Admin settings.
+  public static BigtableDataSettings toDataSettings(Configuration configuration) {
+    BigtableDataSettings.Builder dataBuilder = BigtableDataSettings.newBuilder();
+
+    dataBuilder
+        .setProjectId(getValue(configuration, PROJECT_ID_KEY, "Project ID"))
+        .setInstanceId(getValue(configuration, INSTANCE_ID_KEY, "Instance ID"));
+
+    String appProfileId = configuration.get(APP_PROFILE_ID_KEY);
+    if (appProfileId != null) {
+      dataBuilder.setAppProfileId(appProfileId);
+    }
+
+    EnhancedBigtableStubSettings.Builder stubSettings = dataBuilder.stubSettings();
+
+    String dataHostOverride = configuration.get(BIGTABLE_HOST_KEY);
+    String portOverrideStr = configuration.get(BIGTABLE_PORT_KEY);
+
+    String endpoint = stubSettings.getEndpoint();
+
+    // TODO: check the possibilities of only port number update.
+    if (dataHostOverride != null && portOverrideStr != null) {
+      LOG.debug("API Data endpoint host %s.", dataHostOverride);
+      endpoint = dataHostOverride + ":" + Integer.parseInt(portOverrideStr);
+      stubSettings.setEndpoint(endpoint);
+    }
+
+    String usePlaintextStr = configuration.get(BIGTABLE_USE_PLAINTEXT_NEGOTIATION);
+    if (usePlaintextStr != null) {}
+
+    //    setBulkOptions(configuration, bigtableOptionsBuilder);
+
+    //    setClientCallOptions(configuration, bigtableOptionsBuilder);
+    //
+    //    String emulatorHost = configuration.get(BIGTABLE_EMULATOR_HOST_KEY);
+    //    if (emulatorHost != null) {
+    //      bigtableOptionsBuilder.enableEmulator(emulatorHost);
+    //    }
+    //
+    //    String useBatchStr = configuration.get(BIGTABLE_USE_BATCH);
+    //    if (useBatchStr != null) {
+    //      bigtableOptionsBuilder.setUseBatch(Boolean.parseBoolean(useBatchStr));
+    //    }
+    //
+    //    String useGcjClientStr = configuration.get(BIGTABLE_USE_GCJ_CLIENT);
+    //    if (useGcjClientStr != null) {
+    //      bigtableOptionsBuilder.setUseGCJClient(Boolean.parseBoolean(useGcjClientStr));
+    //    }
+
+    // TODO: more settings needs to copy over.
+    return dataBuilder.build();
+  }
+
+  /** Utility to convert {@link Configuration} to {@link BigtableTableAdminSettings}. */
+  // TODO: Need to copy over the defaults of BigtableOptions to BigtableData/Admin settings.
+  public static BigtableTableAdminSettings toAdminSettings(Configuration configuration)
+      throws IOException {
+    BigtableTableAdminSettings.Builder adminBuilder = BigtableTableAdminSettings.newBuilder();
+
+    adminBuilder
+        .setProjectId(getValue(configuration, PROJECT_ID_KEY, "Project ID"))
+        .setInstanceId(getValue(configuration, INSTANCE_ID_KEY, "Instance ID"));
+
+    BigtableTableAdminStubSettings.Builder stubSettings = adminBuilder.stubSettings();
+
+    String adminHostOverride = configuration.get(BIGTABLE_ADMIN_HOST_KEY);
+    String portOverrideStr = configuration.get(BIGTABLE_PORT_KEY);
+    // TODO: check the possibilities of only port number update.
+    if (adminHostOverride != null && portOverrideStr != null) {
+      LOG.debug("Admin endpoint host %s.", adminHostOverride);
+      stubSettings.setEndpoint(adminHostOverride + ":" + Integer.parseInt(portOverrideStr));
+    }
+
+    // TODO: more settings needs to copy over.
+    return adminBuilder.build();
   }
 
   private static String getValue(final Configuration configuration, String key, String type) {
