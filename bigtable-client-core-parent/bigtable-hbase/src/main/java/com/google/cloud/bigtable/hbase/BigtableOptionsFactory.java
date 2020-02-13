@@ -24,12 +24,24 @@ import static com.google.cloud.bigtable.config.CallOptionsConfig.LONG_TIMEOUT_MS
 import static com.google.cloud.bigtable.config.CallOptionsConfig.SHORT_TIMEOUT_MS_DEFAULT;
 import static com.google.cloud.bigtable.config.CallOptionsConfig.USE_TIMEOUT_DEFAULT;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static io.grpc.internal.GrpcUtil.USER_AGENT_KEY;
+import static org.threeten.bp.Duration.ofMillis;
 
 import com.google.api.core.InternalExtensionOnly;
+import com.google.api.gax.batching.BatchingSettings;
+import com.google.api.gax.batching.FlowControlSettings;
+import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.grpc.GrpcStatusCode;
+import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.HeaderProvider;
+import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.admin.v2.stub.BigtableTableAdminStubSettings;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.BigtableVersionInfo;
 import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CallOptionsConfig;
 import com.google.cloud.bigtable.config.CredentialOptions;
@@ -38,12 +50,15 @@ import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import io.grpc.Status;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.util.VersionInfo;
+import org.threeten.bp.Duration;
 
 /**
  * Static methods to convert an instance of {@link org.apache.hadoop.conf.Configuration} to a {@link
@@ -359,6 +374,10 @@ public class BigtableOptionsFactory {
   /** Utility to convert {@link Configuration} to {@link BigtableDataSettings}. */
   // TODO: Need to copy over the defaults of BigtableOptions to BigtableData/Admin settings.
   public static BigtableDataSettings toDataSettings(Configuration configuration) {
+    Preconditions.checkState(
+        configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES),
+        "Disabling retries is not currently supported.");
+
     BigtableDataSettings.Builder dataBuilder = BigtableDataSettings.newBuilder();
 
     dataBuilder
@@ -386,8 +405,6 @@ public class BigtableOptionsFactory {
 
     String usePlaintextStr = configuration.get(BIGTABLE_USE_PLAINTEXT_NEGOTIATION);
     if (usePlaintextStr != null) {}
-
-    //    setBulkOptions(configuration, bigtableOptionsBuilder);
 
     //    setClientCallOptions(configuration, bigtableOptionsBuilder);
     //
@@ -516,6 +533,191 @@ public class BigtableOptionsFactory {
     }
 
     bigtableOptionsBuilder.setBulkOptions(bulkOptionsBuilder.build());
+  }
+
+  private static final int RPC_DEADLINE_MS = 360_000;
+  private static final int MAX_RETRY_TIMEOUT_MS = 60_000;
+
+  // Identifier to distinguish between CBT or GCJ adapter.
+  private static final String VENEER_ADAPTER =
+      BigtableVersionInfo.CORE_USER_AGENT + "," + "veneer-adapter,";
+
+  /** Creates {@link CredentialsProvider} based on {@link CredentialOptions}. */
+  private static CredentialsProvider buildCredentialProvider(Configuration configuration)
+      throws IOException {
+
+    Credentials credentials = null;
+    if (configuration.getBoolean(
+        BIGTABLE_USE_SERVICE_ACCOUNTS_KEY, BIGTABLE_USE_SERVICE_ACCOUNTS_DEFAULT)) {
+      LOG.debug("Using service accounts");
+
+      BigtableDataSettings.enableOpenCensusStats();
+      if (configuration instanceof BigtableExtendedConfiguration) {
+        credentials = ((BigtableExtendedConfiguration) configuration).getCredentials();
+
+      } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY) != null) {
+        String jsonValue = configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY);
+        LOG.debug("Using json value");
+        CredentialOptions.jsonCredentials(jsonValue);
+      } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY) != null) {
+        String keyFileLocation =
+            configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY);
+        LOG.debug("Using json keyfile: %s", keyFileLocation);
+      } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY) != null) {
+        String serviceAccount = configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY);
+        LOG.debug("Service account %s specified.", serviceAccount);
+        String keyFileLocation =
+            configuration.get(BIGTABLE_SERVICE_ACCOUNT_P12_KEYFILE_LOCATION_KEY);
+        Preconditions.checkState(
+            !isNullOrEmpty(keyFileLocation),
+            "Key file location must be specified when setting service account email");
+        LOG.debug("Using p12 keyfile: %s", keyFileLocation);
+      } else {
+        LOG.debug("Using default credentials.");
+      }
+    } else if (configuration.getBoolean(
+        BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY, BIGTABLE_NULL_CREDENTIAL_ENABLE_DEFAULT)) {
+      LOG.info("Enabling the use of null credentials. This should not be used in production.");
+    } else {
+      throw new IllegalStateException("Either service account or null credentials must be enabled");
+    }
+
+    return FixedCredentialsProvider.create(credentials);
+  }
+
+  /** Creates {@link HeaderProvider} with VENEER_ADAPTER as prefix for user agent */
+  private static HeaderProvider buildHeaderProvider(Configuration configuration) {
+
+    // This information is in addition to bigtable-client-core version, and jdk version.
+    StringBuilder agentBuilder = new StringBuilder();
+    agentBuilder.append("hbase-").append(VersionInfo.getVersion());
+    String customUserAgent = configuration.get(CUSTOM_USER_AGENT_KEY);
+    if (customUserAgent != null) {
+      agentBuilder.append(',').append(customUserAgent);
+    }
+
+    return FixedHeaderProvider.create(
+        USER_AGENT_KEY.name(), VENEER_ADAPTER + agentBuilder.toString());
+  }
+
+  private static void buildBulkMutationsSettings(
+      final Configuration configuration, EnhancedBigtableStubSettings.Builder builder) {
+    BatchingSettings.Builder batchMutateBuilder =
+        builder.bulkMutateRowsSettings().getBatchingSettings().toBuilder();
+
+    long autoFlushMs =
+        configuration.getLong(BIGTABLE_BULK_AUTOFLUSH_MS_KEY, BIGTABLE_BULK_AUTOFLUSH_MS_DEFAULT);
+    long bulkMaxRowKeyCount =
+        configuration.getLong(
+            BIGTABLE_BULK_MAX_ROW_KEY_COUNT, BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT);
+    int channelCount =
+        configuration.getInt(
+            BIGTABLE_DATA_CHANNEL_COUNT_KEY, BigtableOptions.BIGTABLE_DATA_CHANNEL_COUNT_DEFAULT);
+    int defaultRpcCount = BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT * channelCount;
+    int maxInflightRpcs = configuration.getInt(MAX_INFLIGHT_RPCS_KEY, defaultRpcCount);
+
+    if (autoFlushMs > 0) {
+      batchMutateBuilder.setDelayThreshold(Duration.ofMillis(autoFlushMs));
+    }
+
+    if (maxInflightRpcs > 0) {
+      long maxMemory =
+          configuration.getLong(
+              BIGTABLE_BUFFERED_MUTATOR_MAX_MEMORY_KEY, BulkOptions.BIGTABLE_MAX_MEMORY_DEFAULT);
+      batchMutateBuilder.setFlowControlSettings(
+          FlowControlSettings.newBuilder()
+              .setMaxOutstandingRequestBytes(maxMemory)
+              .setMaxOutstandingElementCount(maxInflightRpcs * bulkMaxRowKeyCount)
+              .build());
+    }
+
+    batchMutateBuilder
+        .setElementCountThreshold(bulkMaxRowKeyCount)
+        .setRequestByteThreshold(
+            configuration.getLong(
+                BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES,
+                BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT));
+
+    RetrySettings retrySettings =
+        buildIdempotentRetrySettings(
+            builder.bulkMutateRowsSettings().getRetrySettings().toBuilder(), configuration);
+
+    builder
+        .bulkMutateRowsSettings()
+        .setBatchingSettings(batchMutateBuilder.build())
+        .setRetrySettings(retrySettings)
+        .setRetryableCodes(buildRetryCodes(configuration));
+  }
+
+  /** Creates {@link RetrySettings} for non-streaming idempotent method. */
+  private static RetrySettings buildIdempotentRetrySettings(
+      RetrySettings.Builder retryBuilder, Configuration configuration) {
+
+    if (configuration.getBoolean(ALLOW_NO_TIMESTAMP_RETRIES_KEY, false)) {
+      throw new UnsupportedOperationException("Retries without Timestamp does not support yet.");
+    }
+
+    boolean useTimeOut = configuration.getBoolean(BIGTABLE_USE_TIMEOUTS_KEY, USE_TIMEOUT_DEFAULT);
+    int shortRpcTimeoutMs =
+        configuration.getInt(BIGTABLE_RPC_TIMEOUT_MS_KEY, SHORT_TIMEOUT_MS_DEFAULT);
+
+    Duration rpcTimeout = ofMillis(useTimeOut ? shortRpcTimeoutMs : RPC_DEADLINE_MS);
+
+    boolean retryOnDeadlineExceeded =
+        configuration.getBoolean(ENABLE_GRPC_RETRY_DEADLINEEXCEEDED_KEY, true);
+
+    int initialElapsedBackoffMillis =
+        configuration.getInt(
+            INITIAL_ELAPSED_BACKOFF_MILLIS_KEY, RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS);
+
+    int maxElapsedBackoffMillis =
+        configuration.getInt(
+            MAX_ELAPSED_BACKOFF_MILLIS_KEY, RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS);
+
+    int readPartialRowTimeoutMillis =
+        configuration.getInt(
+            READ_PARTIAL_ROW_TIMEOUT_MS, RetryOptions.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS);
+
+    int streamingBufferSize =
+        configuration.getInt(READ_BUFFER_SIZE, RetryOptions.DEFAULT_STREAMING_BUFFER_SIZE);
+
+    int maxScanTimeoutRetries =
+        configuration.getInt(
+            MAX_SCAN_TIMEOUT_RETRIES, RetryOptions.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES);
+
+    return retryBuilder
+        .setInitialRpcTimeout(ofMillis(initialElapsedBackoffMillis))
+        .setRetryDelayMultiplier(RetryOptions.DEFAULT_BACKOFF_MULTIPLIER)
+        .setMaxRetryDelay(ofMillis(MAX_RETRY_TIMEOUT_MS))
+        .setInitialRpcTimeout(rpcTimeout)
+        .setMaxRetryDelay(rpcTimeout)
+        .setMaxAttempts(0)
+        .setTotalTimeout(ofMillis(maxElapsedBackoffMillis))
+        .build();
+  }
+
+  /** Creates {@link Set} of {@link StatusCode.Code} from {@link Status.Code} */
+  private static Set<StatusCode.Code> buildRetryCodes(Configuration configuration) {
+
+    ImmutableSet.Builder<StatusCode.Code> statusCodeBuilder = ImmutableSet.builder();
+    for (Status.Code retryCode : RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES_SET) {
+      statusCodeBuilder.add(GrpcStatusCode.of(retryCode).getCode());
+    }
+
+    String retryCodes = configuration.get(ADDITIONAL_RETRY_CODES, "");
+    String codes[] = retryCodes.split(",");
+    for (String stringCode : codes) {
+      String trimmed = stringCode.trim();
+      if (trimmed.isEmpty()) {
+        continue;
+      }
+      StatusCode.Code code = StatusCode.Code.valueOf(trimmed);
+      Preconditions.checkArgument(code != null, "Code " + stringCode + " not found.");
+      statusCodeBuilder.add(code);
+      LOG.debug("gRPC retry on: %s", stringCode);
+    }
+
+    return statusCodeBuilder.build();
   }
 
   private static void setCredentialOptions(
