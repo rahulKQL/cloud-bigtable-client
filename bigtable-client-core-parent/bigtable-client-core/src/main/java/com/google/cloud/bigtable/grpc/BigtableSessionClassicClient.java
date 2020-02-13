@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLException;
 
+@InternalApi
 public class BigtableSessionClassicClient implements IBigtableSession {
 
   private static final Logger LOG = new Logger(BigtableSession.class);
