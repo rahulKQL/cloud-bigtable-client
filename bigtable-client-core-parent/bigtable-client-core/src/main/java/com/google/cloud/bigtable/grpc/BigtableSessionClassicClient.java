@@ -31,6 +31,7 @@ import com.google.cloud.bigtable.grpc.io.GoogleCloudResourcePrefixInterceptor;
 import com.google.cloud.bigtable.grpc.io.HeaderInterceptor;
 import com.google.cloud.bigtable.grpc.io.Watchdog;
 import com.google.cloud.bigtable.grpc.io.WatchdogInterceptor;
+import com.google.cloud.bigtable.metrics.BigtableClientMetrics;
 import com.google.cloud.bigtable.util.ReferenceCountedHashMap;
 import com.google.cloud.bigtable.util.ThreadUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -173,7 +174,7 @@ public class BigtableSessionClassicClient implements IBigtableSession {
   private BigtableTableAdminClient tableAdminClient;
   private BigtableInstanceGrpcClient instanceAdminClient;
 
-  BigtableSessionClassicClient(BigtableOptions opts) throws IOException {
+  public BigtableSessionClassicClient(BigtableOptions opts) throws IOException {
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(opts.getProjectId()), PROJECT_ID_EMPTY_OR_NULL);
     Preconditions.checkArgument(
@@ -501,6 +502,10 @@ public class BigtableSessionClassicClient implements IBigtableSession {
   }
   // </editor-fold>
 
+  public BigtableOptions getBigtableOptions() {
+    return options;
+  }
+
   @Override
   public IBigtableDataClient getDataClient() {
     return new BigtableDataClientWrapper(dataClient, dataRequestContext);
@@ -535,5 +540,50 @@ public class BigtableSessionClassicClient implements IBigtableSession {
   @Override
   public BigtableInstanceClient getInstanceAdminClient() {
     return instanceAdminClient;
+  }
+
+  @Override
+  public void close() throws IOException {
+    if (watchdog != null) {
+      watchdog.stop();
+    }
+
+    long timeoutNanos = TimeUnit.SECONDS.toNanos(10);
+    long endTimeNanos = System.nanoTime() + timeoutNanos;
+    for (ManagedChannel channel : managedChannels) {
+      channel.shutdown();
+    }
+    for (ManagedChannel channel : managedChannels) {
+      long awaitTimeNanos = endTimeNanos - System.nanoTime();
+      if (awaitTimeNanos <= 0) {
+        break;
+      }
+      try {
+        channel.awaitTermination(awaitTimeNanos, TimeUnit.NANOSECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Interrupted while closing the channelPools");
+      }
+    }
+    for (ManagedChannel channel : managedChannels) {
+      if (!channel.isTerminated()) {
+        // Sometimes, gRPC channels don't close properly. We cannot explain why that happens,
+        // nor can we reproduce the problem reliably. However, that doesn't actually cause
+        // problems. Synchronous RPCs will throw exceptions right away. Buffered Mutator based
+        // async operations are already logged. Direct async operations may have some trouble,
+        // but users should not currently be using them directly.
+        //
+        // NOTE: We haven't seen this problem since removing the RefreshingChannel
+        LOG.info("Could not close %s after 10 seconds.", channel.getClass().getName());
+        break;
+      }
+    }
+    managedChannels.clear();
+
+    if (options.useCachedChannel() && options.useGCJClient()) {
+      cachedClientContexts.remove(options.getDataHost());
+    }
+
+    BigtableClientMetrics.counter(BigtableClientMetrics.MetricLevel.Info, "sessions.active").dec();
   }
 }

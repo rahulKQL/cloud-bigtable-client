@@ -1,5 +1,7 @@
 package com.google.cloud.bigtable.hbase.wrapper;
 
+import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL;
+
 import com.google.api.core.InternalApi;
 import com.google.api.gax.core.BackgroundResource;
 import com.google.api.gax.core.FixedCredentialsProvider;
@@ -24,6 +26,7 @@ import com.google.cloud.bigtable.grpc.BigtableTableAdminGCJClient;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
+import com.google.cloud.bigtable.metrics.BigtableClientMetrics;
 import com.google.cloud.bigtable.util.ReferenceCountedHashMap;
 import com.google.common.base.MoreObjects;
 import io.grpc.ManagedChannel;
@@ -59,12 +62,14 @@ public class BigtableSessionGCJClient implements IBigtableSession {
 
   private final String projectId;
   private final String instanceId;
+  private final boolean useCachedDataPool;
+  private final String dataHostName;
   private final Long bulkMutateMaxRowKeyCount;
 
   public BigtableSessionGCJClient(Configuration configuration) throws IOException {
     BigtableDataSettings dataSettings = BigtableOptionsFactory.toDataSettings(configuration);
 
-    String dataHostName =
+    this.dataHostName =
         configuration.get(
             BigtableOptionsFactory.BIGTABLE_HOST_KEY, BigtableOptions.BIGTABLE_DATA_HOST_DEFAULT);
     this.projectId = dataSettings.getProjectId();
@@ -79,33 +84,40 @@ public class BigtableSessionGCJClient implements IBigtableSession {
                 .getMaxOutstandingRequestBytes(),
             0L);
 
+    // This is primarily used by Dataflow where connections open and close often. This is a
+    // performance optimization that will reduce the cost to open connections.
+    this.useCachedDataPool = configuration.getBoolean(BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL, false);
+
     // If we're using a cached channel we need to check if it's set up already. If
     //  not we need to do the setup now.
-    ClientContext cachedCtx = null;
-    synchronized (BigtableSession.class) {
-      // If it's not set up for this specific Host we set it up and save the context for
-      //  future connections
-      if (!cachedClientContexts.containsKey(dataHostName)) {
-        cachedCtx = ClientContext.create(dataSettings.getStubSettings());
-      } else {
-        cachedCtx = cachedClientContexts.get(dataHostName);
+
+    if (useCachedDataPool) {
+      ClientContext cachedCtx = null;
+      synchronized (BigtableSession.class) {
+        // If it's not set up for this specific Host we set it up and save the context for
+        //  future connections
+        if (!cachedClientContexts.containsKey(dataHostName)) {
+          cachedCtx = ClientContext.create(dataSettings.getStubSettings());
+        } else {
+          cachedCtx = cachedClientContexts.get(dataHostName);
+        }
+        // Adding reference for reference count
+        cachedClientContexts.put(dataHostName, cachedCtx);
       }
-      // Adding reference for reference count
-      cachedClientContexts.put(dataHostName, cachedCtx);
+
+      BigtableDataSettings.Builder builder = dataSettings.toBuilder();
+
+      // Add the executor and transport channel to the settings/options
+      builder
+          .stubSettings()
+          .setExecutorProvider(FixedExecutorProvider.create(cachedCtx.getExecutor()))
+          .setTransportChannelProvider(
+              FixedTransportChannelProvider.create(
+                  Objects.requireNonNull(cachedCtx.getTransportChannel())))
+          .setCredentialsProvider(FixedCredentialsProvider.create(cachedCtx.getCredentials()))
+          .build();
+      dataSettings = builder.build();
     }
-
-    BigtableDataSettings.Builder builder = dataSettings.toBuilder();
-
-    // Add the executor and transport channel to the settings/options
-    builder
-        .stubSettings()
-        .setExecutorProvider(FixedExecutorProvider.create(cachedCtx.getExecutor()))
-        .setTransportChannelProvider(
-            FixedTransportChannelProvider.create(
-                Objects.requireNonNull(cachedCtx.getTransportChannel())))
-        .setCredentialsProvider(FixedCredentialsProvider.create(cachedCtx.getCredentials()))
-        .build();
-    dataSettings = builder.build();
     this.dataGCJClient =
         new BigtableDataGCJClient(
             com.google.cloud.bigtable.data.v2.BigtableDataClient.create(dataSettings));
@@ -152,7 +164,31 @@ public class BigtableSessionGCJClient implements IBigtableSession {
 
   @Override
   public BigtableInstanceClient getInstanceAdminClient() {
-    // Not sure how this should be worked out
-    return null;
+    throw new UnsupportedOperationException("getInstanceAdminClient");
+  }
+
+  @Override
+  public void close() throws IOException {
+
+    try {
+      if (dataGCJClient != null) {
+        dataGCJClient.close();
+      }
+    } catch (Exception ex) {
+      throw new IOException("Could not close the data client", ex);
+    }
+    try {
+      if (adminGCJClient != null) {
+        adminGCJClient.close();
+      }
+    } catch (Exception ex) {
+      throw new IOException("Could not close the admin client", ex);
+    }
+
+    if (useCachedDataPool) {
+      cachedClientContexts.remove(dataHostName);
+    }
+
+    BigtableClientMetrics.counter(BigtableClientMetrics.MetricLevel.Info, "sessions.active").dec();
   }
 }
