@@ -23,7 +23,6 @@ import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
-import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.AbstractBigtableTable;
 import com.google.cloud.bigtable.hbase.BatchExecutor;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
@@ -227,8 +226,8 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
   /** {@inheritDoc} */
   @Override
   public CompletableFuture<Result> get(Get get) {
-    return toCompletableFuture(clientWrapper.readFlatRowsAsync(hbaseAdapter.adapt(get)))
-        .thenApply(BigtableAsyncTable::toResult);
+    return toCompletableFuture(clientWrapper.readRowsAsync(hbaseAdapter.adapt(get)))
+        .thenApply(rows -> Adapters.ROW_ADAPTER.adaptResponse(getSingleResult(rows)));
   }
 
   /** {@inheritDoc} */
@@ -237,11 +236,8 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
     return get(GetAdapter.setCheckExistenceOnly(get)).thenApply(r -> !r.isEmpty());
   }
 
-  private static Result toResult(List<FlatRow> list) {
-    return Adapters.FLAT_ROW_ADAPTER.adaptResponse(getSingleResult(list));
-  }
-
-  private static FlatRow getSingleResult(List<FlatRow> list) {
+  private static com.google.cloud.bigtable.data.v2.models.Row getSingleResult(
+      List<com.google.cloud.bigtable.data.v2.models.Row> list) {
     switch (list.size()) {
       case 0:
         return null;
@@ -345,8 +341,9 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
     LOG.trace("getScanner(Scan)");
     final Span span = TRACER.spanBuilder("BigtableTable.scan").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> scanner =
-          clientWrapper.readFlatRows(hbaseAdapter.adapt(scan));
+      com.google.cloud.bigtable.grpc.scanner.ResultScanner<
+              com.google.cloud.bigtable.data.v2.models.Row>
+          scanner = clientWrapper.readRows(hbaseAdapter.adapt(scan));
       if (AbstractBigtableTable.hasWhileMatchFilter(scan.getFilter())) {
         return Adapters.BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER.adapt(scanner, span);
       }
@@ -386,12 +383,12 @@ public class BigtableAsyncTable implements AsyncTable<ScanResultConsumer> {
           "scan with consumer and while match filter is not allowed");
     }
     Query query = hbaseAdapter.adapt(scan);
-    clientWrapper.readFlatRowsAsync(
+    clientWrapper.readRowsAsync(
         query,
-        new StreamObserver<FlatRow>() {
+        new StreamObserver<com.google.cloud.bigtable.data.v2.models.Row>() {
           @Override
-          public void onNext(FlatRow value) {
-            consumer.onNext(Adapters.FLAT_ROW_ADAPTER.adaptResponse(value));
+          public void onNext(com.google.cloud.bigtable.data.v2.models.Row value) {
+            consumer.onNext(Adapters.ROW_ADAPTER.adaptResponse(value));
           }
 
           @Override

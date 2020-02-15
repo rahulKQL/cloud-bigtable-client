@@ -16,7 +16,8 @@
 package com.google.cloud.bigtable.hbase.adapters.filters;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.grpc.scanner.FlatRow;
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.hbase.adapters.ResponseAdapter;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Status;
@@ -38,14 +39,14 @@ public class BigtableWhileMatchResultScannerAdapter {
   private static final String WHILE_MATCH_FILTER_IN_LABEL_SUFFIX = "-in";
   private static final String WHILE_MATCH_FILTER_OUT_LABEL_SUFFIX = "-out";
 
-  private final ResponseAdapter<FlatRow, Result> rowAdapter;
+  private final ResponseAdapter<Row, Result> rowAdapter;
 
   /**
    * Constructor for BigtableWhileMatchResultScannerAdapter.
    *
    * @param rowAdapter a {@link com.google.cloud.bigtable.hbase.adapters.ResponseAdapter} object.
    */
-  public BigtableWhileMatchResultScannerAdapter(ResponseAdapter<FlatRow, Result> rowAdapter) {
+  public BigtableWhileMatchResultScannerAdapter(ResponseAdapter<Row, Result> rowAdapter) {
     this.rowAdapter = rowAdapter;
   }
 
@@ -59,12 +60,12 @@ public class BigtableWhileMatchResultScannerAdapter {
    * @return a {@link org.apache.hadoop.hbase.client.ResultScanner} object.
    */
   public ResultScanner adapt(
-      final com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> bigtableResultScanner,
+      final com.google.cloud.bigtable.grpc.scanner.ResultScanner<Row> bigtableResultScanner,
       final Span span) {
     return new AbstractClientScanner() {
       @Override
       public Result next() throws IOException {
-        FlatRow row = bigtableResultScanner.next();
+        Row row = bigtableResultScanner.next();
         if (row == null) {
           // Null signals EOF.
           span.end();
@@ -107,13 +108,13 @@ public class BigtableWhileMatchResultScannerAdapter {
    * Returns {@code true} iff there are matching {@link WhileMatchFilter} labels or no {@link
    * WhileMatchFilter} labels.
    *
-   * @param row a {@link FlatRow} object.
+   * @param row a {@link Row} object.
    * @return a boolean value.
    */
-  public static boolean hasMatchingLabels(FlatRow row) {
+  public static boolean hasMatchingLabels(Row row) {
     int inLabelCount = 0;
     int outLabelCount = 0;
-    for (FlatRow.Cell cell : row.getCells()) {
+    for (RowCell cell : row.getCells()) {
       for (String label : cell.getLabels()) {
         // TODO(kevinsi4508): Make sure {@code label} is a {@link WhileMatchFilter} label.
         // TODO(kevinsi4508): Handle multiple {@link WhileMatchFilter} labels.

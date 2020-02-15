@@ -16,6 +16,7 @@
 package com.google.cloud.bigtable.hbase;
 
 import com.google.api.core.InternalApi;
+import com.google.api.gax.rpc.ApiExceptions;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
@@ -23,7 +24,6 @@ import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.CheckAndMutateUtil;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
@@ -259,9 +259,11 @@ public abstract class AbstractBigtableTable implements Table {
     }
   }
 
-  private FlatRow getResults(Get get, String method) {
+  private com.google.cloud.bigtable.data.v2.models.Row getResults(Get get, String method) {
     try (Timer.Context ignored = metrics.getTimer.time()) {
-      List<FlatRow> list = clientWrapper.readFlatRowsList(hbaseAdapter.adapt(get));
+      List<com.google.cloud.bigtable.data.v2.models.Row> list =
+          ApiExceptions.callAndTranslateApiException(
+              clientWrapper.readRowsAsync(hbaseAdapter.adapt(get)));
       switch (list.size()) {
         case 0:
           return null;
@@ -273,12 +275,8 @@ public abstract class AbstractBigtableTable implements Table {
     }
   }
 
-  protected Result convertToResult(FlatRow row) {
-    if (row == null) {
-      return Adapters.FLAT_ROW_ADAPTER.adaptResponse(null);
-    } else {
-      return Adapters.FLAT_ROW_ADAPTER.adaptResponse(row);
-    }
+  protected Result convertToResult(com.google.cloud.bigtable.data.v2.models.Row row) {
+    return Adapters.ROW_ADAPTER.adaptResponse(row);
   }
 
   /** {@inheritDoc} */
@@ -287,8 +285,9 @@ public abstract class AbstractBigtableTable implements Table {
     LOG.trace("getScanner(Scan)");
     Span span = TRACER.spanBuilder("BigtableTable.scan").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> scanner =
-          clientWrapper.readFlatRows(hbaseAdapter.adapt(scan));
+      com.google.cloud.bigtable.grpc.scanner.ResultScanner<
+              com.google.cloud.bigtable.data.v2.models.Row>
+          scanner = clientWrapper.readRows(hbaseAdapter.adapt(scan));
       if (hasWhileMatchFilter(scan.getFilter())) {
         return Adapters.BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER.adapt(scanner, span);
       }
