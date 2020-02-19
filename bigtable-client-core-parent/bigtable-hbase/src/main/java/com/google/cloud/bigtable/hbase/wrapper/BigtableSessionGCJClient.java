@@ -19,7 +19,6 @@ import com.google.cloud.bigtable.core.IBulkMutation;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.internal.NameUtil;
 import com.google.cloud.bigtable.grpc.BigtableDataGCJClient;
-import com.google.cloud.bigtable.grpc.BigtableInstanceClient;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableSessionSharedThreadPools;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminGCJClient;
@@ -29,18 +28,19 @@ import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.metrics.BigtableClientMetrics;
 import com.google.cloud.bigtable.util.ReferenceCountedHashMap;
 import com.google.common.base.MoreObjects;
-import io.grpc.ManagedChannel;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
 
-// TODO:
-@InternalApi
+// TODO: JavaDoc
+/**
+ * For internal use only - public for technical reasons.
+ *
+ * <p>See {@link BigtableSession} as a public alternative.
+ */
+@InternalApi("For internal usage only")
 public class BigtableSessionGCJClient implements IBigtableSession {
-
-  private static Map<String, ManagedChannel> cachedDataChannelPools = new HashMap<>();
 
   // Map containing ref-counted, cached connections to specific destination hosts for GCJ client
   private static Map<String, ClientContext> cachedClientContexts =
@@ -58,7 +58,6 @@ public class BigtableSessionGCJClient implements IBigtableSession {
   private final BigtableTableAdminSettings adminSettings;
   private final BaseBigtableTableAdminSettings baseAdminSettings;
   private BigtableTableAdminGCJClient adminGCJClient;
-  private IBigtableTableAdminClient adminClientWrapper;
 
   private final String projectId;
   private final String instanceId;
@@ -125,6 +124,8 @@ public class BigtableSessionGCJClient implements IBigtableSession {
     // Defer the creation of both the tableAdminClient until we need them.
     this.adminSettings = BigtableOptionsFactory.toAdminSettings(configuration);
     this.baseAdminSettings = BaseBigtableTableAdminSettings.create(adminSettings.getStubSettings());
+
+    BigtableClientMetrics.counter(BigtableClientMetrics.MetricLevel.Info, "sessions.active").inc();
   }
 
   @Override
@@ -149,22 +150,17 @@ public class BigtableSessionGCJClient implements IBigtableSession {
     return getDataClient().createBulkMutationBatcher(tableId);
   }
 
+  // TODO: this needs to be updated with GCJ wrappers.
   @Override
   public BulkRead createBulkRead(String tableId) {
     BigtableTableName tableName =
         new BigtableTableName(NameUtil.formatTableName(projectId, instanceId, tableId));
 
-    // TODO: this needs to be updated with GCJ wrappers.
     return new BulkRead(
         getDataClient(),
         tableName,
         bulkMutateMaxRowKeyCount.intValue(),
         BigtableSessionSharedThreadPools.getInstance().getBatchThreadPool());
-  }
-
-  @Override
-  public BigtableInstanceClient getInstanceAdminClient() {
-    throw new UnsupportedOperationException("getInstanceAdminClient");
   }
 
   @Override

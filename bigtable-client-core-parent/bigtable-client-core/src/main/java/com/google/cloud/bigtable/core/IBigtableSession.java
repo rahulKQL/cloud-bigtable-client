@@ -1,7 +1,6 @@
 package com.google.cloud.bigtable.core;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.grpc.BigtableInstanceClient;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import java.io.IOException;
 
@@ -15,9 +14,4 @@ public interface IBigtableSession extends AutoCloseable {
   IBulkMutation createBulkMutation(String tableId);
 
   BulkRead createBulkRead(String tableId);
-
-  // TODO: Decide if this should be added or not. considering Instance op are deprecated.
-  BigtableInstanceClient getInstanceAdminClient();
-
-  void close() throws IOException;
 }
