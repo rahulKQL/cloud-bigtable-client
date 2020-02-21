@@ -1,11 +1,11 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2020 Google LLC.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,12 +36,11 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
-public class TestBigtableOptionsFactory {
+public class TestBigtableCoreSettings {
 
-  public static final String TEST_HOST = "localhost";
-  public static final int TEST_PORT = 80;
-  public static final String TEST_PROJECT_ID = "project-foo";
-  public static final String TEST_INSTANCE_ID = "test-instance";
+  private static final String TEST_HOST = "localhost";
+  private static final String TEST_PROJECT_ID = "project-foo";
+  private static final String TEST_INSTANCE_ID = "test-instance";
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
   private Configuration configuration;
@@ -60,7 +59,7 @@ public class TestBigtableOptionsFactory {
     configuration.unset(BigtableOptionsFactory.PROJECT_ID_KEY);
 
     expectedException.expect(IllegalArgumentException.class);
-    BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableCoreSettings.create(configuration).createBigtableOptions();
   }
 
   @Test
@@ -69,7 +68,7 @@ public class TestBigtableOptionsFactory {
     configuration.unset(BigtableOptionsFactory.BIGTABLE_HOST_KEY);
 
     expectedException.expect(IllegalArgumentException.class);
-    BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableCoreSettings.create(configuration).createBigtableOptions();
   }
 
   @Test
@@ -78,7 +77,7 @@ public class TestBigtableOptionsFactory {
     configuration.unset(BigtableOptionsFactory.INSTANCE_ID_KEY);
 
     expectedException.expect(IllegalArgumentException.class);
-    BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableCoreSettings.create(configuration).createBigtableOptions();
   }
 
   @Test
@@ -87,7 +86,7 @@ public class TestBigtableOptionsFactory {
     configuration.set(BigtableOptionsFactory.BIGTABLE_ADMIN_HOST_KEY, "admin-host");
     configuration.setInt(BigtableOptionsFactory.BIGTABLE_PORT_KEY, 1234);
     configuration.setBoolean(BigtableOptionsFactory.BIGTABLE_USE_PLAINTEXT_NEGOTIATION, true);
-    BigtableOptions options = BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableOptions options = BigtableCoreSettings.create(configuration).createBigtableOptions();
 
     assertEquals("data-host", options.getDataHost());
     assertEquals("admin-host", options.getAdminHost());
@@ -101,7 +100,7 @@ public class TestBigtableOptionsFactory {
     configuration.set(BigtableOptionsFactory.BIGTABLE_HOST_KEY, TEST_HOST);
     configuration.setBoolean(BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_KEY, false);
     configuration.setBoolean(BigtableOptionsFactory.BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY, true);
-    BigtableOptions options = BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableOptions options = BigtableCoreSettings.create(configuration).createBigtableOptions();
     assertEquals(TEST_HOST, options.getDataHost());
     assertEquals(TEST_PROJECT_ID, options.getProjectId());
     assertEquals(TEST_INSTANCE_ID, options.getInstanceId());
@@ -110,7 +109,7 @@ public class TestBigtableOptionsFactory {
   @Test
   public void testDefaultRetryOptions() throws IOException {
     RetryOptions retryOptions =
-        BigtableOptionsFactory.fromConfiguration(configuration).getRetryOptions();
+        BigtableCoreSettings.create(configuration).createBigtableOptions().getRetryOptions();
     assertEquals(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES, retryOptions.enableRetries());
     assertEquals(
         RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS, retryOptions.getMaxElapsedBackoffMillis());
@@ -128,7 +127,7 @@ public class TestBigtableOptionsFactory {
     configuration.set(BigtableOptionsFactory.MAX_ELAPSED_BACKOFF_MILLIS_KEY, "111");
     configuration.set(BigtableOptionsFactory.READ_PARTIAL_ROW_TIMEOUT_MS, "123");
     RetryOptions retryOptions =
-        BigtableOptionsFactory.fromConfiguration(configuration).getRetryOptions();
+        BigtableCoreSettings.create(configuration).createBigtableOptions().getRetryOptions();
     assertEquals(false, retryOptions.enableRetries());
     assertEquals(false, retryOptions.retryOnDeadlineExceeded());
     assertEquals(111, retryOptions.getMaxElapsedBackoffMillis());
@@ -144,7 +143,7 @@ public class TestBigtableOptionsFactory {
     configuration.set(BigtableOptionsFactory.INSTANCE_ID_KEY, TEST_INSTANCE_ID);
     configuration = BigtableConfiguration.withCredentials(configuration, credentials);
 
-    BigtableOptions options = BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableOptions options = BigtableCoreSettings.create(configuration).createBigtableOptions();
 
     Credentials actualCreds = CredentialFactory.getCredentials(options.getCredentialOptions());
     Assert.assertSame(credentials, actualCreds);
@@ -154,7 +153,7 @@ public class TestBigtableOptionsFactory {
   public void testLongOperationsTimeouts() throws IOException {
     String longTimeout = "10000";
     configuration.set(BigtableOptionsFactory.BIGTABLE_LONG_RPC_TIMEOUT_MS_KEY, longTimeout);
-    BigtableOptions options = BigtableOptionsFactory.fromConfiguration(configuration);
+    BigtableOptions options = BigtableCoreSettings.create(configuration).createBigtableOptions();
 
     assertEquals(
         Integer.parseInt(longTimeout), options.getCallOptionsConfig().getMutateRpcTimeoutMs());
@@ -168,7 +167,7 @@ public class TestBigtableOptionsFactory {
     configuration.set(BigtableOptionsFactory.INSTANCE_ID_KEY, TEST_INSTANCE_ID);
     configuration.set(BigtableOptionsFactory.BIGTABLE_MUTATE_RPC_TIMEOUT_MS_KEY, longTimeout);
     configuration.set(BigtableOptionsFactory.BIGTABLE_READ_RPC_TIMEOUT_MS_KEY, readTimeout);
-    options = BigtableOptionsFactory.fromConfiguration(configuration);
+    options = BigtableCoreSettings.create(configuration).createBigtableOptions();
 
     assertEquals(LONG_TIMEOUT_MS_DEFAULT, options.getCallOptionsConfig().getLongRpcTimeoutMs());
     assertEquals(

@@ -29,7 +29,7 @@ import com.google.bigtable.repackaged.com.google.cloud.bigtable.grpc.scanner.Res
 import com.google.bigtable.repackaged.com.google.common.annotations.VisibleForTesting;
 import com.google.bigtable.repackaged.com.google.common.base.Preconditions;
 import com.google.cloud.bigtable.batch.common.CloudBigtableServiceImpl;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
+import com.google.cloud.bigtable.hbase.BigtableCoreSettings;
 import com.google.cloud.bigtable.hbase.adapters.read.FlatRowAdapter;
 import com.google.cloud.bigtable.hbase.util.ByteStringer;
 import java.io.IOException;
@@ -616,7 +616,7 @@ public class CloudBigtableIO {
       Configuration config = source.getConfiguration().toHBaseConfig();
 
       // This will use cached data channels under the covers.
-      session = new BigtableSession(BigtableOptionsFactory.fromConfiguration(config));
+      session = new BigtableSession(BigtableCoreSettings.create(config).createBigtableOptions());
       scanner =
           session
               .getDataClientWrapper()

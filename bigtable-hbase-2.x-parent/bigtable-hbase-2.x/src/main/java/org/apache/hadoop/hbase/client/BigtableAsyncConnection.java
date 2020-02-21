@@ -21,7 +21,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
+import com.google.cloud.bigtable.hbase.BigtableCoreSettings;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter.MutationAdapters;
@@ -84,7 +84,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
 
     BigtableOptions opts;
     try {
-      opts = BigtableOptionsFactory.fromConfiguration(conf);
+      opts = BigtableCoreSettings.create(conf).createBigtableOptions();
     } catch (IOException ioe) {
       LOG.error("Error loading BigtableOptions from Configuration.", ioe);
       throw ioe;

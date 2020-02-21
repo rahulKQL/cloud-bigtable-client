@@ -19,6 +19,7 @@ import com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableO
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableVersionInfo;
 import com.google.bigtable.repackaged.com.google.common.base.Preconditions;
 import com.google.bigtable.repackaged.com.google.common.collect.ImmutableMap;
+import com.google.cloud.bigtable.hbase.BigtableCoreSettings;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import java.io.IOException;
 import java.io.Serializable;
@@ -111,8 +112,8 @@ public class CloudBigtableConfiguration implements Serializable {
 
     /**
      * Adds additional connection configuration. {@link
-     * BigtableOptionsFactory#fromConfiguration(Configuration)} for more information about
-     * configuration options.
+     * BigtableCoreSettings#createBigtableOptions()} for more information about configuration
+     * options.
      *
      * @return The {@link CloudBigtableConfiguration.Builder} for chaining convenience.
      */
@@ -122,8 +123,8 @@ public class CloudBigtableConfiguration implements Serializable {
 
     /**
      * Adds additional connection configuration. {@link
-     * BigtableOptionsFactory#fromConfiguration(Configuration)} for more information about
-     * configuration options.
+     * BigtableCoreSettings#createBigtableOptions()} for more information about configuration
+     * options.
      *
      * @return The {@link CloudBigtableConfiguration.Builder} for chaining convenience.
      */
@@ -157,7 +158,7 @@ public class CloudBigtableConfiguration implements Serializable {
    * @param projectId The project ID for the instance.
    * @param instanceId The instance ID.
    * @param additionalConfiguration A {@link Map} with additional connection configuration. See
-   *     {@link BigtableOptionsFactory#fromConfiguration(Configuration)} for more information about
+   *     {@link BigtableCoreSettings#createBigtableOptions()} e for more information about
    *     configuration options.
    */
   protected CloudBigtableConfiguration(
@@ -204,7 +205,7 @@ public class CloudBigtableConfiguration implements Serializable {
    * @return The {@link BigtableOptions} object.
    */
   public BigtableOptions toBigtableOptions() throws IOException {
-    return BigtableOptionsFactory.fromConfiguration(toHBaseConfig());
+    return BigtableCoreSettings.create(toHBaseConfig()).createBigtableOptions();
   }
 
   /**

@@ -64,7 +64,8 @@ public class DirectPathFallbackIT extends AbstractTest {
     }
 
     BigtableOptions.Builder bigtableOptions =
-        BigtableOptionsFactory.fromConfiguration(sharedTestEnv.getConfiguration())
+        BigtableCoreSettings.create(sharedTestEnv.getConfiguration())
+            .createBigtableOptions()
             .toBuilder()
             .setDataChannelCount(1);
 
