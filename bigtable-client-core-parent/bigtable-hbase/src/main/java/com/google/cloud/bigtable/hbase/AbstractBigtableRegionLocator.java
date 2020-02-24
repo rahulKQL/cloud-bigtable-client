@@ -26,7 +26,6 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
-import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.hbase.adapters.SampledRowKeysAdapter;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -54,14 +53,12 @@ public abstract class AbstractBigtableRegionLocator {
   private ApiFuture<List<HRegionLocation>> regionsFuture;
   private final IBigtableDataClient client;
   private final SampledRowKeysAdapter adapter;
-  private final BigtableTableName bigtableTableName;
   private long regionsFetchTimeMillis;
 
   public AbstractBigtableRegionLocator(
       TableName tableName, BigtableOptions options, IBigtableDataClient client) {
     this.tableName = tableName;
     this.client = client;
-    this.bigtableTableName = options.getInstanceName().toTableName(tableName.getNameAsString());
     ServerName serverName = ServerName.valueOf(options.getDataHost(), options.getPort(), 0);
     this.adapter = getSampledRowKeysAdapter(tableName, serverName);
   }
@@ -83,10 +80,10 @@ public abstract class AbstractBigtableRegionLocator {
       return this.regionsFuture;
     }
 
-    LOG.debug("Sampling rowkeys for table %s", bigtableTableName.toString());
+    LOG.debug("Sampling rowkeys for table %s", tableName.toString());
 
     try {
-      ApiFuture<List<KeyOffset>> future = client.sampleRowKeysAsync(bigtableTableName.getTableId());
+      ApiFuture<List<KeyOffset>> future = client.sampleRowKeysAsync(tableName.getNameAsString());
       this.regionsFuture =
           ApiFutures.transform(
               future,

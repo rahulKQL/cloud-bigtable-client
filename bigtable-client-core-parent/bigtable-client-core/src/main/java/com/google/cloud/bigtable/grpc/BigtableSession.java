@@ -702,10 +702,12 @@ public class BigtableSession implements Closeable {
    * alternative.
    */
   @InternalApi("For internal usage only")
-  public IBulkMutation createBulkMutationWrapper(BigtableTableName tableName) {
+  public IBulkMutation createBulkMutationWrapper(String tableId) {
     if (options.useGCJClient()) {
-      return getDataClientWrapper().createBulkMutationBatcher(tableName.getTableId());
+      return getDataClientWrapper().createBulkMutationBatcher(tableId);
     } else {
+      BigtableTableName tableName =
+          new BigtableTableName(options.getInstanceName().toTableNameStr(tableId));
       return new BulkMutationWrapper(createBulkMutation(tableName));
     }
   }

@@ -185,19 +185,16 @@ public class TestAppProfile {
 
   @Test
   public void testBulkMutation() throws Exception {
-    BigtableTableName fakeTableName =
-        new BigtableTableName("projects/fake-project/instances/fake-instance/tables/fake-table");
-
     RowMutationEntry rowMutation = RowMutationEntry.create("fake-key");
 
-    IBulkMutation bulkMutation = defaultSession.createBulkMutationWrapper(fakeTableName);
+    IBulkMutation bulkMutation = defaultSession.createBulkMutationWrapper(TABLE_ID);
     bulkMutation.add(rowMutation);
     bulkMutation.flush();
 
     MutateRowsRequest req = fakeDataService.popLastRequest();
     Preconditions.checkState(req.getAppProfileId().isEmpty());
 
-    IBulkMutation bulkMutation2 = profileSession.createBulkMutationWrapper(fakeTableName);
+    IBulkMutation bulkMutation2 = profileSession.createBulkMutationWrapper(TABLE_ID);
     bulkMutation2.add(rowMutation);
     bulkMutation2.flush();
 

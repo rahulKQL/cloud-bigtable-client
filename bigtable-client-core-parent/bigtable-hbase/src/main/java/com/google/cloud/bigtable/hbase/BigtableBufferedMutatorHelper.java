@@ -23,7 +23,6 @@ import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
 import com.google.cloud.bigtable.core.IBulkMutation;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.OperationAccountant;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.cloud.bigtable.util.ApiFutureUtil;
@@ -84,8 +83,8 @@ public class BigtableBufferedMutatorHelper {
     this.adapter = adapter;
     this.configuration = configuration;
     this.options = session.getOptions();
-    BigtableTableName tableName = this.adapter.getBigtableTableName();
-    this.bulkMutation = session.createBulkMutationWrapper(tableName);
+    this.bulkMutation =
+        session.createBulkMutationWrapper(this.adapter.getTableName().getNameAsString());
     this.dataClient = session.getDataClientWrapper();
     this.operationAccountant = new OperationAccountant();
   }

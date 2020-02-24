@@ -31,7 +31,6 @@ import com.google.cloud.bigtable.core.IBulkMutation;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -77,8 +76,7 @@ public class TestBigtableBufferedMutator {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(mockSession.createBulkMutationWrapper(any(BigtableTableName.class)))
-        .thenReturn(mockBulkMutation);
+    when(mockSession.createBulkMutationWrapper(any(String.class))).thenReturn(mockBulkMutation);
     when(mockSession.getDataClientWrapper()).thenReturn(mockDataClient);
   }
 

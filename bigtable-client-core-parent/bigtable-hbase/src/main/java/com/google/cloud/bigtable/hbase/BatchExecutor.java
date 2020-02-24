@@ -23,6 +23,7 @@ import com.google.api.core.SettableApiFuture;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.grpc.BigtableSession;
+import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
@@ -145,7 +146,9 @@ public class BatchExecutor {
   public BatchExecutor(BigtableSession session, HBaseRequestAdapter requestAdapter) {
     this.requestAdapter = requestAdapter;
     this.options = session.getOptions();
-    this.bulkRead = session.createBulkRead(requestAdapter.getBigtableTableName());
+    // TODO(rahulkql): remove BigtableTableName from here once IBulkRead is implemented
+    this.bulkRead =
+        session.createBulkRead(new BigtableTableName(requestAdapter.getBigtableTableName()));
     this.bufferedMutatorHelper =
         new BigtableBufferedMutatorHelper(
             requestAdapter,

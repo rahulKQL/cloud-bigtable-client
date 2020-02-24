@@ -17,13 +17,13 @@ package com.google.cloud.bigtable.hbase.adapters;
 
 import com.google.api.core.InternalApi;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.data.v2.internal.NameUtil;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.MutationApi;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
-import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.hbase.adapters.read.DefaultReadHooks;
 import com.google.cloud.bigtable.hbase.adapters.read.ReadHooks;
 import com.google.common.annotations.VisibleForTesting;
@@ -71,7 +71,7 @@ public class HBaseRequestAdapter {
 
   protected final MutationAdapters mutationAdapters;
   protected final TableName tableName;
-  protected final BigtableTableName bigtableTableName;
+  protected final String bigtableTableName;
 
   /**
    * Constructor for HBaseRequestAdapter.
@@ -95,7 +95,8 @@ public class HBaseRequestAdapter {
       BigtableOptions options, TableName tableName, MutationAdapters mutationAdapters) {
     this(
         tableName,
-        options.getInstanceName().toTableName(tableName.getQualifierAsString()),
+        NameUtil.formatTableName(
+            options.getProjectId(), options.getInstanceId(), tableName.getNameAsString()),
         mutationAdapters);
   }
 
@@ -103,12 +104,12 @@ public class HBaseRequestAdapter {
    * Constructor for HBaseRequestAdapter.
    *
    * @param tableName a {@link TableName} object.
-   * @param bigtableTableName a {@link BigtableTableName} object.
+   * @param bigtableTableName a {@link String} object.
    * @param mutationAdapters a {@link MutationAdapters} object.
    */
   @VisibleForTesting
   HBaseRequestAdapter(
-      TableName tableName, BigtableTableName bigtableTableName, MutationAdapters mutationAdapters) {
+      TableName tableName, String bigtableTableName, MutationAdapters mutationAdapters) {
     this.tableName = tableName;
     this.bigtableTableName = bigtableTableName;
     this.mutationAdapters = mutationAdapters;
@@ -162,7 +163,7 @@ public class HBaseRequestAdapter {
    */
   public Query adapt(Get get) {
     ReadHooks readHooks = new DefaultReadHooks();
-    Query query = Query.create(bigtableTableName.getTableId());
+    Query query = Query.create(tableName.getNameAsString());
     Adapters.GET_ADAPTER.adapt(get, readHooks, query);
     readHooks.applyPreSendHook(query);
     return query;
@@ -176,7 +177,7 @@ public class HBaseRequestAdapter {
    */
   public Query adapt(Scan scan) {
     ReadHooks readHooks = new DefaultReadHooks();
-    Query query = Query.create(bigtableTableName.getTableId());
+    Query query = Query.create(tableName.getNameAsString());
     Adapters.SCAN_ADAPTER.adapt(scan, readHooks, query);
     readHooks.applyPreSendHook(query);
     return query;
@@ -191,7 +192,7 @@ public class HBaseRequestAdapter {
   public ReadModifyWriteRow adapt(Append append) {
     ReadModifyWriteRow readModifyWriteRow =
         ReadModifyWriteRow.create(
-            bigtableTableName.getTableId(), ByteString.copyFrom(append.getRow()));
+            tableName.getNameAsString(), ByteString.copyFrom(append.getRow()));
     Adapters.APPEND_ADAPTER.adapt(append, readModifyWriteRow);
     return readModifyWriteRow;
   }
@@ -205,7 +206,7 @@ public class HBaseRequestAdapter {
   public ReadModifyWriteRow adapt(Increment increment) {
     ReadModifyWriteRow readModifyWriteRow =
         ReadModifyWriteRow.create(
-            bigtableTableName.getTableId(), ByteString.copyFrom(increment.getRow()));
+            tableName.getNameAsString(), ByteString.copyFrom(increment.getRow()));
     Adapters.INCREMENT_ADAPTER.adapt(increment, readModifyWriteRow);
     return readModifyWriteRow;
   }
@@ -305,9 +306,9 @@ public class HBaseRequestAdapter {
   /**
    * Getter for the field <code>bigtableTableName</code>.
    *
-   * @return a {@link com.google.cloud.bigtable.grpc.BigtableTableName} object.
+   * @return a complete table name as a string.
    */
-  public BigtableTableName getBigtableTableName() {
+  public String getBigtableTableName() {
     return bigtableTableName;
   }
 
@@ -323,9 +324,9 @@ public class HBaseRequestAdapter {
   private RowMutation newRowMutationModel(byte[] rowKey) {
     if (!mutationAdapters.putAdapter.isSetClientTimestamp()) {
       return RowMutation.create(
-          bigtableTableName.getTableId(), ByteString.copyFrom(rowKey), Mutation.createUnsafe());
+          tableName.getNameAsString(), ByteString.copyFrom(rowKey), Mutation.createUnsafe());
     }
-    return RowMutation.create(bigtableTableName.getTableId(), ByteString.copyFrom(rowKey));
+    return RowMutation.create(tableName.getNameAsString(), ByteString.copyFrom(rowKey));
   }
 
   private RowMutationEntry buildRowMutationEntry(byte[] rowKey) {
