@@ -15,6 +15,17 @@
  */
 package com.google.cloud.bigtable.config;
 
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_ADMIN_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_APP_PROFILE_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BATCH_DATA_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_DATA_CHANNEL_COUNT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_DATA_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_EMULATOR_HOST_ENV_VAR;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_PORT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_INITIAL_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+
 import com.google.api.core.BetaApi;
 import com.google.api.core.InternalApi;
 import com.google.api.core.InternalExtensionOnly;
@@ -48,61 +59,10 @@ public class BigtableOptions implements Serializable, Cloneable {
     ManagedChannelBuilder configureChannel(ManagedChannelBuilder builder, String host);
   }
 
-  private static final long serialVersionUID = 1L;
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final String BIGTABLE_EMULATOR_HOST_ENV_VAR = "BIGTABLE_EMULATOR_HOST";
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final String BIGTABLE_ADMIN_HOST_DEFAULT = "bigtableadmin.googleapis.com";
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final String BIGTABLE_DATA_HOST_DEFAULT = "bigtable.googleapis.com";
-
   // Temporary DirectPath config
   private static final String DIRECT_PATH_ENV_VAR = "GOOGLE_CLOUD_ENABLE_DIRECT_PATH";
   private static final String BIGTABLE_DIRECTPATH_DATA_HOST_DEFAULT =
       "directpath-bigtable.googleapis.com";
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final String BIGTABLE_BATCH_DATA_HOST_DEFAULT = "batch-bigtable.googleapis.com";
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final int BIGTABLE_PORT_DEFAULT = 443;
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final int BIGTABLE_DATA_CHANNEL_COUNT_DEFAULT = getDefaultDataChannelCount();
-
-  /**
-   * Constant <code>BIGTABLE_APP_PROFILE_DEFAULT=""</code>, defaults to the server default app
-   * profile
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final String BIGTABLE_APP_PROFILE_DEFAULT = "";
-
-  /** @deprecated This field will be removed in future versions. */
-  @Deprecated public static final String BIGTABLE_CLIENT_ADAPTER = "BIGTABLE_CLIENT_ADAPTER";
-
-  private static final Logger LOG = new Logger(BigtableOptions.class);
-
-  private static int getDefaultDataChannelCount() {
-    // 20 Channels seemed to work well on a 4 CPU machine, and this ratio seems to scale well for
-    // higher CPU machines. Use no more than 250 Channels by default.
-    int availableProcessors = Runtime.getRuntime().availableProcessors();
-    return Math.min(250, Math.max(1, availableProcessors * 4));
-  }
-
-  public static BigtableOptions getDefaultOptions() {
-    return builder().build();
-  }
 
   /**
    * Checks if DirectPath is enabled via an environment variable.
@@ -123,6 +83,12 @@ public class BigtableOptions implements Serializable, Cloneable {
       }
     }
     return false;
+  }
+
+  private static final Logger LOG = new Logger(BigtableOptions.class);
+
+  public static BigtableOptions getDefaultOptions() {
+    return builder().build();
   }
 
   /** Create a new instance of the {@link Builder}. */
@@ -320,11 +286,11 @@ public class BigtableOptions implements Serializable, Cloneable {
     public BigtableOptions build() {
       if (options.bulkOptions == null) {
         int maxInflightRpcs =
-            BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT * options.dataChannelCount;
+            BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT * options.dataChannelCount;
         options.bulkOptions = BulkOptions.builder().setMaxInflightRpcs(maxInflightRpcs).build();
       } else if (options.bulkOptions.getMaxInflightRpcs() <= 0) {
         int maxInflightRpcs =
-            BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT * options.dataChannelCount;
+            BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT * options.dataChannelCount;
         options.bulkOptions =
             options.bulkOptions.toBuilder().setMaxInflightRpcs(maxInflightRpcs).build();
       }
@@ -343,13 +309,12 @@ public class BigtableOptions implements Serializable, Cloneable {
           options.dataHost = BIGTABLE_BATCH_DATA_HOST_DEFAULT;
         }
         RetryOptions.Builder retryOptionsBuilder = options.retryOptions.toBuilder();
-        if (options.retryOptions.getInitialBackoffMillis()
-            == RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS) {
+        if (options.retryOptions.getInitialBackoffMillis() == DEFAULT_INITIAL_BACKOFF_MILLIS) {
           retryOptionsBuilder.setInitialBackoffMillis((int) TimeUnit.SECONDS.toMillis(5));
         }
 
         if (options.retryOptions.getMaxElapsedBackoffMillis()
-            == RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS) {
+            == DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS) {
           retryOptionsBuilder.setMaxElapsedBackoffMillis((int) TimeUnit.MINUTES.toMillis(5));
         }
         options.retryOptions = retryOptionsBuilder.build();

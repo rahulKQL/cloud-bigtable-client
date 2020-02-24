@@ -15,10 +15,10 @@
  */
 package com.google.cloud.bigtable.config;
 
-import static com.google.cloud.bigtable.config.CallOptionsConfig.SHORT_TIMEOUT_MS_DEFAULT;
-import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_BACKOFF_MULTIPLIER;
-import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS;
-import static com.google.cloud.bigtable.config.RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_BACKOFF_MULTIPLIER;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_INITIAL_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.SHORT_TIMEOUT_MS_DEFAULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;

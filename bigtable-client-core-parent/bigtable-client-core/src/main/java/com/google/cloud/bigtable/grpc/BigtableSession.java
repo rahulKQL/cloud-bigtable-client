@@ -16,6 +16,9 @@
 
 package com.google.cloud.bigtable.grpc;
 
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_ADMIN_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_DATA_HOST_DEFAULT;
+
 import com.google.api.client.util.Clock;
 import com.google.api.client.util.Strings;
 import com.google.api.core.InternalApi;
@@ -163,9 +166,7 @@ public class BigtableSession implements Closeable {
           }
         });
     for (final String host :
-        Arrays.asList(
-            BigtableOptions.BIGTABLE_DATA_HOST_DEFAULT,
-            BigtableOptions.BIGTABLE_ADMIN_HOST_DEFAULT)) {
+        Arrays.asList(BIGTABLE_DATA_HOST_DEFAULT, BIGTABLE_ADMIN_HOST_DEFAULT)) {
       connectionStartupExecutor.execute(
           new Runnable() {
             @Override

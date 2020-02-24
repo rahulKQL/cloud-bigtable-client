@@ -15,7 +15,8 @@
  */
 package com.google.cloud.bigtable.config;
 
-import com.google.api.core.InternalApi;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.SERVICE_ACCOUNT_JSON_ENV_VARIABLE;
+
 import com.google.api.core.InternalExtensionOnly;
 import com.google.auth.Credentials;
 import java.io.ByteArrayInputStream;
@@ -49,10 +50,6 @@ import java.util.Objects;
 @InternalExtensionOnly
 public class CredentialOptions implements Serializable {
   private static final long serialVersionUID = 1L;
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final String SERVICE_ACCOUNT_JSON_ENV_VARIABLE = "GOOGLE_APPLICATION_CREDENTIALS";
 
   /** Constant <code>LOG</code> */
   protected static final Logger LOG = new Logger(CredentialOptions.class);

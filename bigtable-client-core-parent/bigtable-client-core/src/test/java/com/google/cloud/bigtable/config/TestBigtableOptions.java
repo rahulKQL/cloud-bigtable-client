@@ -15,6 +15,11 @@
  */
 package com.google.cloud.bigtable.config;
 
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_ADMIN_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BATCH_DATA_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_EMULATOR_HOST_ENV_VAR;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_PORT_DEFAULT;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -95,7 +100,7 @@ public class TestBigtableOptions {
   public void testEmulator() {
     Map<String, String> oldEnv = System.getenv();
     Map<String, String> testEnv = new HashMap<>();
-    testEnv.put(BigtableOptions.BIGTABLE_EMULATOR_HOST_ENV_VAR, "localhost:1234");
+    testEnv.put(BIGTABLE_EMULATOR_HOST_ENV_VAR, "localhost:1234");
     setTestEnv(testEnv);
     BigtableOptions options = BigtableOptions.builder().setPort(443).setDataHost("xxx").build();
     Assert.assertEquals(1234, options.getPort());
@@ -106,9 +111,9 @@ public class TestBigtableOptions {
 
     setTestEnv(oldEnv);
     options = BigtableOptions.builder().setDataHost("override").build();
-    Assert.assertEquals(BigtableOptions.BIGTABLE_PORT_DEFAULT, options.getPort());
+    Assert.assertEquals(BIGTABLE_PORT_DEFAULT, options.getPort());
     Assert.assertEquals("override", options.getDataHost());
-    Assert.assertEquals(BigtableOptions.BIGTABLE_ADMIN_HOST_DEFAULT, options.getAdminHost());
+    Assert.assertEquals(BIGTABLE_ADMIN_HOST_DEFAULT, options.getAdminHost());
     Assert.assertFalse(options.usePlaintextNegotiation());
     Assert.assertEquals(CredentialOptions.defaultCredentials(), options.getCredentialOptions());
   }
@@ -117,7 +122,7 @@ public class TestBigtableOptions {
   public void testUseBatch_default() {
     BigtableOptions options = BigtableOptions.builder().setUseBatch(true).build();
     Assert.assertTrue(options.useCachedChannel());
-    Assert.assertEquals(BigtableOptions.BIGTABLE_BATCH_DATA_HOST_DEFAULT, options.getDataHost());
+    Assert.assertEquals(BIGTABLE_BATCH_DATA_HOST_DEFAULT, options.getDataHost());
     Assert.assertEquals(5000, options.getRetryOptions().getInitialBackoffMillis());
     Assert.assertEquals(300_000, options.getRetryOptions().getMaxElapsedBackoffMillis());
   }

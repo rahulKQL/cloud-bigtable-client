@@ -15,9 +15,10 @@
  */
 package com.google.cloud.bigtable.beam;
 
+import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_MAX_MEMORY_DEFAULT;
+
 import com.google.bigtable.repackaged.com.google.api.core.InternalApi;
 import com.google.bigtable.repackaged.com.google.api.core.InternalExtensionOnly;
-import com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BulkOptions;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.KeyOffset;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.bigtable.repackaged.com.google.cloud.bigtable.grpc.BigtableInstanceName;
@@ -841,7 +842,7 @@ public class CloudBigtableIO {
       return getConnection()
           .getBufferedMutator(
               new BufferedMutatorParams(TableName.valueOf(tableName))
-                  .writeBufferSize(BulkOptions.BIGTABLE_MAX_MEMORY_DEFAULT)
+                  .writeBufferSize(BIGTABLE_MAX_MEMORY_DEFAULT)
                   .listener(createExceptionListener(context)));
     }
 

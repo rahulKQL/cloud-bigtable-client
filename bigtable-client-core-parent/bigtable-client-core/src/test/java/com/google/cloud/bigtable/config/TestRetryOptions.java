@@ -51,7 +51,8 @@ public class TestRetryOptions {
   @Test
   public void testGetRetryableStatusCodesWhenDefaultCodes() {
     RetryOptions options = RetryOptions.getDefaultOptions();
-    assertEquals(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES_SET, options.getRetryableStatusCodes());
+    assertEquals(
+        BigtableCoreConstants.DEFAULT_ENABLE_GRPC_RETRIES_SET, options.getRetryableStatusCodes());
   }
 
   @Test

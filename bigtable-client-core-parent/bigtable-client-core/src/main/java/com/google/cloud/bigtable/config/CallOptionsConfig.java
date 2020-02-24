@@ -15,6 +15,10 @@
  */
 package com.google.cloud.bigtable.config;
 
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.LONG_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.SHORT_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.USE_TIMEOUT_DEFAULT;
+
 import com.google.api.core.InternalExtensionOnly;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -28,23 +32,6 @@ import java.io.Serializable;
 public class CallOptionsConfig implements Serializable {
 
   private static final long serialVersionUID = 1L;
-
-  /** Constant <code>USE_TIMEOUT_DEFAULT=false</code> */
-  public static final boolean USE_TIMEOUT_DEFAULT = false;
-
-  /**
-   * The default duration to wait before timing out RPCs. 1 minute is probably too long for most
-   * RPCs, but the intent is to have a conservative timeout by default and aim for user overrides.
-   */
-  public static final int SHORT_TIMEOUT_MS_DEFAULT = 60_000;
-
-  /**
-   * The default duration to wait before timing out RPCs. 10 minute is probably too long for most
-   * RPCs, but the intent is to have a conservative timeout by default and aim for user overrides.
-   * There could very well be 10 minute scans, so keep the value conservative for most cases and
-   * allow user overrides as needed.
-   */
-  public static final int LONG_TIMEOUT_MS_DEFAULT = 600_000;
 
   public static Builder builder() {
     return new Builder();

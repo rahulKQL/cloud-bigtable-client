@@ -15,7 +15,15 @@
  */
 package com.google.cloud.bigtable.config;
 
-import com.google.api.core.InternalApi;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_BACKOFF_MULTIPLIER;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_ENABLE_GRPC_RETRIES;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_ENABLE_GRPC_RETRIES_SET;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_INITIAL_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_STREAMING_BUFFER_SIZE;
+
 import com.google.api.core.InternalExtensionOnly;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
@@ -24,74 +32,12 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /** Options for retrying requests, including back off configuration. */
 @InternalExtensionOnly
 public class RetryOptions implements Serializable, Cloneable {
 
   private static final long serialVersionUID = 1L;
-
-  /** @deprecated This field will be removed in the future */
-  @Deprecated public static int DEFAULT_STREAMING_BUFFER_SIZE = 60;
-
-  /**
-   * Flag indicating whether or not grpc retries should be enabled. The default is to enable retries
-   * on failed idempotent operations.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final boolean DEFAULT_ENABLE_GRPC_RETRIES = true;
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final Set<Status.Code> DEFAULT_ENABLE_GRPC_RETRIES_SET =
-      ImmutableSet.of(
-          Status.Code.DEADLINE_EXCEEDED,
-          Status.Code.UNAVAILABLE,
-          Status.Code.ABORTED,
-          Status.Code.UNAUTHENTICATED);
-
-  /**
-   * We can timeout when reading large cells with a low value here. With a 10MB cell limit, 60
-   * seconds allows our connection to drop to ~170kbyte/s. A 10 second timeout requires 1Mbyte/s
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS =
-      (int) TimeUnit.MILLISECONDS.convert(60, TimeUnit.SECONDS);
-
-  /**
-   * Initial amount of time to wait before retrying failed operations (default value: 5ms).
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int DEFAULT_INITIAL_BACKOFF_MILLIS = 5;
-  /**
-   * Multiplier to apply to wait times after failed retries (default value: 1.5).
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final double DEFAULT_BACKOFF_MULTIPLIER = 1.5;
-  /**
-   * Maximum amount of time to retry before failing the operation (default value: 60 seconds).
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS =
-      (int) TimeUnit.MILLISECONDS.convert(60, TimeUnit.SECONDS);
-  /**
-   * Maximum number of times to retry after a scan timeout
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int DEFAULT_MAX_SCAN_TIMEOUT_RETRIES = 3;
 
   public static RetryOptions getDefaultOptions() {
     return builder().build();

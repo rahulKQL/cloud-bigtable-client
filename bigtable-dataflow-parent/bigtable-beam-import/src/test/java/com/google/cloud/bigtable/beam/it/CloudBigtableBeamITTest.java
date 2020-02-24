@@ -15,8 +15,8 @@
  */
 package com.google.cloud.bigtable.beam.it;
 
-import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableOptions.BIGTABLE_ADMIN_HOST_DEFAULT;
-import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableOptions.BIGTABLE_BATCH_DATA_HOST_DEFAULT;
+import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_ADMIN_HOST_DEFAULT;
+import static com.google.bigtable.repackaged.com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BATCH_DATA_HOST_DEFAULT;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_ADMIN_HOST_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_HOST_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.INSTANCE_ID_KEY;

@@ -15,7 +15,14 @@
  */
 package com.google.cloud.bigtable.config;
 
-import com.google.api.core.InternalApi;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_AUTOFLUSH_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_ENABLE_THROTTLE_REBALANCE_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_MAX_MEMORY_DEFAULT;
+
 import com.google.api.core.InternalExtensionOnly;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.common.annotations.VisibleForTesting;
@@ -28,75 +35,6 @@ import java.io.Serializable;
 public class BulkOptions implements Serializable, Cloneable {
 
   private static final long serialVersionUID = 1L;
-
-  /** For internal use only - public for technical reasons. */
-  @InternalApi("For internal usage only")
-  public static final int BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT = 2;
-
-  /**
-   * This describes the maximum size a bulk mutation RPC should be before sending it to the server
-   * and starting the next bulk call. Defaults to 1 MB.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final long BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT = 1 << 20;
-
-  /**
-   * This describes the maximum number of individual MutateRowsRequest.Entry objects to bundle in a
-   * single bulk mutation RPC before sending it to the server and starting the next bulk call. The
-   * server has a maximum of 100,000 total mutations.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT = 125;
-
-  /**
-   * Whether or not to enable a mechanism that reduces the likelihood that a {@link BulkMutation}
-   * intensive application will overload a cluster.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final boolean BIGTABLE_BULK_ENABLE_THROTTLE_REBALANCE_DEFAULT = false;
-
-  /**
-   * The target RPC response time for a MutateRows request. This value is meaningful if bulk
-   * mutation throttling is enabled. 100 ms. is a generally ok latency for MutateRows RPCs, but it
-   * could go higher (for example 300 ms) for less latency sensitive applications that need more
-   * throughput, or lower (10 ms) for latency sensitive applications.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT = 100;
-
-  /**
-   * The maximum amount of time a row will be buffered for. By default 0: indefinitely.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static long BIGTABLE_BULK_AUTOFLUSH_MS_DEFAULT = 0;
-
-  /**
-   * Default rpc count per channel.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final int BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT = 10;
-
-  /**
-   * This is the maximum accumulated size of uncompleted requests that we allow before throttling.
-   * Default to 10% of available memory with a max of 1GB.
-   *
-   * <p>For internal use only - public for technical reasons.
-   */
-  @InternalApi("For internal usage only")
-  public static final long BIGTABLE_MAX_MEMORY_DEFAULT =
-      (long) Math.min(1 << 30, (Runtime.getRuntime().maxMemory() * 0.1d));
 
   public static Builder builder() {
     return new Builder();
@@ -172,7 +110,7 @@ public class BulkOptions implements Serializable, Cloneable {
     /**
      * Enable an experimental feature that will throttle requests from {@link BulkMutation} if
      * request latency surpasses a latency threshold. The default is {@link
-     * BulkOptions#BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT}.
+     * BigtableCoreConstants#BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT}.
      *
      * @deprecated This will be removed in the future
      */

@@ -15,6 +15,10 @@
  */
 package com.google.cloud.bigtable.config;
 
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BATCH_DATA_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_DATA_HOST_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.CLOUD_BIGTABLE_ALL_SCOPES;
+
 import com.google.api.client.util.SecurityUtils;
 import com.google.api.core.InternalApi;
 import com.google.auth.Credentials;
@@ -27,7 +31,6 @@ import com.google.cloud.bigtable.config.CredentialOptions.JsonCredentialsOptions
 import com.google.cloud.bigtable.config.CredentialOptions.P12CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.UserSuppliedCredentialOptions;
 import com.google.cloud.http.HttpTransportOptions.DefaultHttpTransportFactory;
-import com.google.common.collect.ImmutableList;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,25 +49,6 @@ import java.util.concurrent.Executor;
  */
 @InternalApi("For internal usage only")
 public class CredentialFactory {
-
-  /** The OAuth scope required to perform administrator actions such as creating tables. */
-  public static final String CLOUD_BIGTABLE_ADMIN_SCOPE =
-      "https://www.googleapis.com/auth/cloud-bigtable.admin";
-  /** The OAuth scope required to read data from tables. */
-  public static final String CLOUD_BIGTABLE_READER_SCOPE =
-      "https://www.googleapis.com/auth/cloud-bigtable.data.readonly";
-  /** The OAuth scope required to write data to tables. */
-  public static final String CLOUD_BIGTABLE_WRITER_SCOPE =
-      "https://www.googleapis.com/auth/cloud-bigtable.data";
-
-  /** Scopes required to read and write data from tables. */
-  public static final List<String> CLOUD_BIGTABLE_READ_WRITE_SCOPES =
-      ImmutableList.of(CLOUD_BIGTABLE_READER_SCOPE, CLOUD_BIGTABLE_WRITER_SCOPE);
-
-  /** Scopes required for full access to cloud bigtable. */
-  public static final List<String> CLOUD_BIGTABLE_ALL_SCOPES =
-      ImmutableList.of(
-          CLOUD_BIGTABLE_READER_SCOPE, CLOUD_BIGTABLE_WRITER_SCOPE, CLOUD_BIGTABLE_ADMIN_SCOPE);
 
   // HTTP transport used for created credentials to perform token-refresh handshakes with remote
   // credential servers. Initialized lazily to move the possibility of throwing
@@ -296,14 +280,11 @@ public class CredentialFactory {
 
     @Override
     public Map<String, List<String>> getRequestMetadata(URI uri) throws IOException {
-      if (BigtableOptions.BIGTABLE_BATCH_DATA_HOST_DEFAULT.equals(uri.getHost())) {
+      if (BIGTABLE_BATCH_DATA_HOST_DEFAULT.equals(uri.getHost())) {
         try {
           uri =
               new URI(
-                  uri.getScheme(),
-                  BigtableOptions.BIGTABLE_DATA_HOST_DEFAULT,
-                  uri.getPath(),
-                  uri.getFragment());
+                  uri.getScheme(), BIGTABLE_DATA_HOST_DEFAULT, uri.getPath(), uri.getFragment());
         } catch (URISyntaxException e) {
           // Should never happen
           throw new IllegalStateException("Failed to adapt batch endpoint creds uri");

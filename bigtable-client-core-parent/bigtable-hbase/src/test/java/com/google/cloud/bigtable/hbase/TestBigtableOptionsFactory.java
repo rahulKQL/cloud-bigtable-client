@@ -15,7 +15,11 @@
  */
 package com.google.cloud.bigtable.hbase;
 
-import static com.google.cloud.bigtable.config.CallOptionsConfig.LONG_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_ENABLE_GRPC_RETRIES;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.LONG_TIMEOUT_MS_DEFAULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -111,14 +115,11 @@ public class TestBigtableOptionsFactory {
   public void testDefaultRetryOptions() throws IOException {
     RetryOptions retryOptions =
         BigtableOptionsFactory.fromConfiguration(configuration).getRetryOptions();
-    assertEquals(RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES, retryOptions.enableRetries());
+    assertEquals(DEFAULT_ENABLE_GRPC_RETRIES, retryOptions.enableRetries());
+    assertEquals(DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS, retryOptions.getMaxElapsedBackoffMillis());
     assertEquals(
-        RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS, retryOptions.getMaxElapsedBackoffMillis());
-    assertEquals(
-        RetryOptions.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS,
-        retryOptions.getReadPartialRowTimeoutMillis());
-    assertEquals(
-        RetryOptions.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES, retryOptions.getMaxScanTimeoutRetries());
+        DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS, retryOptions.getReadPartialRowTimeoutMillis());
+    assertEquals(DEFAULT_MAX_SCAN_TIMEOUT_RETRIES, retryOptions.getMaxScanTimeoutRetries());
   }
 
   @Test

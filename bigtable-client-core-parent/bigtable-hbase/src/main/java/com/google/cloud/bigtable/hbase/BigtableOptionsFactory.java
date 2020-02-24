@@ -15,14 +15,23 @@
  */
 package com.google.cloud.bigtable.hbase;
 
-import static com.google.cloud.bigtable.config.BulkOptions.BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT;
-import static com.google.cloud.bigtable.config.BulkOptions.BIGTABLE_BULK_AUTOFLUSH_MS_DEFAULT;
-import static com.google.cloud.bigtable.config.BulkOptions.BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT;
-import static com.google.cloud.bigtable.config.BulkOptions.BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT;
-import static com.google.cloud.bigtable.config.BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT;
-import static com.google.cloud.bigtable.config.CallOptionsConfig.LONG_TIMEOUT_MS_DEFAULT;
-import static com.google.cloud.bigtable.config.CallOptionsConfig.SHORT_TIMEOUT_MS_DEFAULT;
-import static com.google.cloud.bigtable.config.CallOptionsConfig.USE_TIMEOUT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_ASYNC_MUTATOR_COUNT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_AUTOFLUSH_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_ENABLE_THROTTLE_REBALANCE_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_MAX_REQUEST_SIZE_BYTES_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_MAX_ROW_KEY_COUNT_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.BIGTABLE_MAX_MEMORY_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_ENABLE_GRPC_RETRIES;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_INITIAL_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.DEFAULT_STREAMING_BUFFER_SIZE;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.LONG_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.SHORT_TIMEOUT_MS_DEFAULT;
+import static com.google.cloud.bigtable.config.BigtableCoreConstants.USE_TIMEOUT_DEFAULT;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.core.InternalExtensionOnly;
@@ -415,22 +424,22 @@ public class BigtableOptionsFactory {
 
     long maxMemory =
         configuration.getLong(
-            BIGTABLE_BUFFERED_MUTATOR_MAX_MEMORY_KEY, BulkOptions.BIGTABLE_MAX_MEMORY_DEFAULT);
+            BIGTABLE_BUFFERED_MUTATOR_MAX_MEMORY_KEY, BIGTABLE_MAX_MEMORY_DEFAULT);
     bulkOptionsBuilder.setMaxMemory(maxMemory);
 
     if (configuration.getBoolean(
         BIGTABLE_BUFFERED_MUTATOR_ENABLE_THROTTLING,
-        BulkOptions.BIGTABLE_BULK_ENABLE_THROTTLE_REBALANCE_DEFAULT)) {
+        BIGTABLE_BULK_ENABLE_THROTTLE_REBALANCE_DEFAULT)) {
       LOG.info(
           "Bigtable mutation latency throttling enabled with threshold %d",
           configuration.getInt(
               BIGTABLE_BUFFERED_MUTATOR_THROTTLING_THRESHOLD_MILLIS,
-              BulkOptions.BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT));
+              BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT));
       bulkOptionsBuilder.enableBulkMutationThrottling();
       bulkOptionsBuilder.setBulkMutationRpcTargetMs(
           configuration.getInt(
               BIGTABLE_BUFFERED_MUTATOR_THROTTLING_THRESHOLD_MILLIS,
-              BulkOptions.BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT));
+              BIGTABLE_BULK_THROTTLE_TARGET_MS_DEFAULT));
     }
 
     bigtableOptionsBuilder.setBulkOptions(bulkOptionsBuilder.build());
@@ -499,7 +508,7 @@ public class BigtableOptionsFactory {
   private static RetryOptions createRetryOptions(Configuration configuration) {
     RetryOptions.Builder retryOptionsBuilder = RetryOptions.builder();
     boolean enableRetries =
-        configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, RetryOptions.DEFAULT_ENABLE_GRPC_RETRIES);
+        configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, DEFAULT_ENABLE_GRPC_RETRIES);
     LOG.debug("gRPC retries enabled: %s", enableRetries);
     retryOptionsBuilder.setEnableRetries(enableRetries);
 
@@ -527,31 +536,26 @@ public class BigtableOptionsFactory {
     retryOptionsBuilder.setRetryOnDeadlineExceeded(retryOnDeadlineExceeded);
 
     int initialElapsedBackoffMillis =
-        configuration.getInt(
-            INITIAL_ELAPSED_BACKOFF_MILLIS_KEY, RetryOptions.DEFAULT_INITIAL_BACKOFF_MILLIS);
+        configuration.getInt(INITIAL_ELAPSED_BACKOFF_MILLIS_KEY, DEFAULT_INITIAL_BACKOFF_MILLIS);
     LOG.debug("gRPC retry initialElapsedBackoffMillis: %d", initialElapsedBackoffMillis);
     retryOptionsBuilder.setInitialBackoffMillis(initialElapsedBackoffMillis);
 
     int maxElapsedBackoffMillis =
-        configuration.getInt(
-            MAX_ELAPSED_BACKOFF_MILLIS_KEY, RetryOptions.DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS);
+        configuration.getInt(MAX_ELAPSED_BACKOFF_MILLIS_KEY, DEFAULT_MAX_ELAPSED_BACKOFF_MILLIS);
     LOG.debug("gRPC retry maxElapsedBackoffMillis: %d", maxElapsedBackoffMillis);
     retryOptionsBuilder.setMaxElapsedBackoffMillis(maxElapsedBackoffMillis);
 
     int readPartialRowTimeoutMillis =
-        configuration.getInt(
-            READ_PARTIAL_ROW_TIMEOUT_MS, RetryOptions.DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS);
+        configuration.getInt(READ_PARTIAL_ROW_TIMEOUT_MS, DEFAULT_READ_PARTIAL_ROW_TIMEOUT_MS);
     LOG.debug("gRPC read partial row timeout (millis): %d", readPartialRowTimeoutMillis);
     retryOptionsBuilder.setReadPartialRowTimeoutMillis(readPartialRowTimeoutMillis);
 
-    int streamingBufferSize =
-        configuration.getInt(READ_BUFFER_SIZE, RetryOptions.DEFAULT_STREAMING_BUFFER_SIZE);
+    int streamingBufferSize = configuration.getInt(READ_BUFFER_SIZE, DEFAULT_STREAMING_BUFFER_SIZE);
     LOG.debug("gRPC read buffer size (count): %d", streamingBufferSize);
     retryOptionsBuilder.setStreamingBufferSize(streamingBufferSize);
 
     int maxScanTimeoutRetries =
-        configuration.getInt(
-            MAX_SCAN_TIMEOUT_RETRIES, RetryOptions.DEFAULT_MAX_SCAN_TIMEOUT_RETRIES);
+        configuration.getInt(MAX_SCAN_TIMEOUT_RETRIES, DEFAULT_MAX_SCAN_TIMEOUT_RETRIES);
     LOG.debug("gRPC max scan timeout retries (count): %d", maxScanTimeoutRetries);
     retryOptionsBuilder.setMaxScanTimeoutRetries(maxScanTimeoutRetries);
 
