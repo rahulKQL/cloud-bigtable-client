@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+/** Default values for various bigtable operation configuration. */
 @InternalApi("For internal usage only")
 public class BigtableCoreConstants {
 
