@@ -61,9 +61,6 @@ public class BigtableCoreConstants {
   @InternalApi("For internal usage only")
   public static final String BIGTABLE_APP_PROFILE_DEFAULT = "";
 
-  /** @deprecated This field will be removed in future versions. */
-  @Deprecated public static final String BIGTABLE_CLIENT_ADAPTER = "BIGTABLE_CLIENT_ADAPTER";
-
   private static int getDefaultDataChannelCount() {
     // 20 Channels seemed to work well on a 4 CPU machine, and this ratio seems to scale well for
     // higher CPU machines. Use no more than 250 Channels by default.
