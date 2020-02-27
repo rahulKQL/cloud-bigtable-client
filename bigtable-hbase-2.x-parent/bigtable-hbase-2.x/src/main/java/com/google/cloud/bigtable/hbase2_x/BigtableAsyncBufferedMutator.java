@@ -18,7 +18,7 @@ package com.google.cloud.bigtable.hbase2_x;
 import static com.google.cloud.bigtable.hbase2_x.FutureUtils.toCompletableFuture;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.grpc.BigtableSession;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.hbase.BigtableBufferedMutatorHelper;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import java.util.List;
@@ -47,7 +47,7 @@ public class BigtableAsyncBufferedMutator implements AsyncBufferedMutator {
    * @param session a {@link com.google.cloud.bigtable.grpc.BigtableSession}
    */
   public BigtableAsyncBufferedMutator(
-      HBaseRequestAdapter adapter, Configuration configuration, BigtableSession session) {
+      HBaseRequestAdapter adapter, Configuration configuration, IBigtableSession session) {
     helper = new BigtableBufferedMutatorHelper(adapter, configuration, session);
   }
 

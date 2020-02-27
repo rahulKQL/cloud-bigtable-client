@@ -19,13 +19,15 @@ import com.google.api.core.InternalApi;
 import com.google.bigtable.v2.SampleRowKeysRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.data.v2.models.KeyOffset;
-import com.google.cloud.bigtable.grpc.BigtableSession;
+import com.google.cloud.bigtable.grpc.BigtableSessionClassicClient;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter.MutationAdapters;
 import com.google.cloud.bigtable.hbase.adapters.SampledRowKeysAdapter;
+import com.google.cloud.bigtable.hbase.wrapper.BigtableSessionGCJClient;
 import com.google.cloud.bigtable.hbase2_x.BigtableAsyncAdmin;
 import com.google.cloud.bigtable.hbase2_x.BigtableAsyncBufferedMutator;
 import com.google.cloud.bigtable.hbase2_x.BigtableAsyncTable;
@@ -59,7 +61,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
   private final Logger LOG = new Logger(getClass());
 
   private final Configuration conf;
-  private final BigtableSession session;
+  private final IBigtableSession session;
   private final BigtableOptions options;
   private volatile boolean closed = false;
 
@@ -91,7 +93,11 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
     }
 
     this.closed = false;
-    this.session = new BigtableSession(opts);
+    if (opts.useGCJClient()) {
+      this.session = new BigtableSessionGCJClient(conf);
+    } else {
+      this.session = new BigtableSessionClassicClient(opts);
+    }
     this.options = this.session.getOptions();
   }
 
@@ -106,7 +112,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
     return new HBaseRequestAdapter(options, tableName, mutationAdapters);
   }
 
-  public BigtableSession getSession() {
+  public IBigtableSession getSession() {
     return this.session;
   }
 
@@ -304,8 +310,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
 
   @Override
   public AsyncTableRegionLocator getRegionLocator(TableName tableName) {
-    return new BigtableAsyncTableRegionLocator(
-        tableName, options, this.session.getDataClientWrapper());
+    return new BigtableAsyncTableRegionLocator(tableName, options, this.session.getDataClient());
   }
 
   @Override
@@ -376,7 +381,7 @@ public class BigtableAsyncConnection implements AsyncConnection, CommonConnectio
     SampleRowKeysRequest.Builder request = SampleRowKeysRequest.newBuilder();
     request.setTableName(options.getInstanceName().toTableNameStr(tableName.getNameAsString()));
     List<KeyOffset> sampleRowKeyResponse =
-        this.session.getDataClientWrapper().sampleRowKeys(tableName.getNameAsString());
+        this.session.getDataClient().sampleRowKeys(tableName.getNameAsString());
 
     return getSampledRowKeysAdapter(tableName, serverName).adaptResponse(sampleRowKeyResponse)
         .stream()

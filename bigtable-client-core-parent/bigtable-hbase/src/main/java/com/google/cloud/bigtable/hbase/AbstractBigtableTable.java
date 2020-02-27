@@ -19,10 +19,10 @@ import com.google.api.core.InternalApi;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
-import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.CheckAndMutateUtil;
@@ -123,9 +123,9 @@ public abstract class AbstractBigtableTable implements Table {
   public AbstractBigtableTable(
       AbstractBigtableConnection bigtableConnection, HBaseRequestAdapter hbaseAdapter) {
     this.bigtableConnection = bigtableConnection;
-    BigtableSession session = bigtableConnection.getSession();
+    IBigtableSession session = bigtableConnection.getSession();
     this.options = session.getOptions();
-    this.clientWrapper = session.getDataClientWrapper();
+    this.clientWrapper = session.getDataClient();
     this.hbaseAdapter = hbaseAdapter;
     this.tableName = hbaseAdapter.getTableName();
   }

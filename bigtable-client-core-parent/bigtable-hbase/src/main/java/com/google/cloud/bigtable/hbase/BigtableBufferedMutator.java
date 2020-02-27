@@ -20,6 +20,7 @@ import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.api.core.InternalApi;
 import com.google.cloud.bigtable.config.Logger;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -71,7 +72,7 @@ public class BigtableBufferedMutator implements BufferedMutator {
   public BigtableBufferedMutator(
       HBaseRequestAdapter adapter,
       Configuration configuration,
-      BigtableSession session,
+      IBigtableSession session,
       BufferedMutator.ExceptionListener listener) {
     helper = new BigtableBufferedMutatorHelper(adapter, configuration, session);
     this.listener = listener;

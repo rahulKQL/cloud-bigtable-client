@@ -22,7 +22,7 @@ import com.google.api.core.InternalApi;
 import com.google.api.core.SettableApiFuture;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
-import com.google.cloud.bigtable.grpc.BigtableSession;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.grpc.async.BulkRead;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
@@ -142,7 +142,7 @@ public class BatchExecutor {
    * @param requestAdapter a {@link com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter}
    *     object.
    */
-  public BatchExecutor(BigtableSession session, HBaseRequestAdapter requestAdapter) {
+  public BatchExecutor(IBigtableSession session, HBaseRequestAdapter requestAdapter) {
     this.requestAdapter = requestAdapter;
     this.options = session.getOptions();
     this.bulkRead = session.createBulkRead(requestAdapter.getBigtableTableName());

@@ -21,6 +21,8 @@ import static com.google.cloud.bigtable.hbase2_x.FutureUtils.toCompletableFuture
 import com.google.api.core.InternalApi;
 import com.google.bigtable.admin.v2.CreateTableFromSnapshotRequest;
 import com.google.bigtable.admin.v2.DeleteSnapshotRequest;
+import com.google.bigtable.admin.v2.ListClustersRequest;
+import com.google.bigtable.admin.v2.ListClustersResponse;
 import com.google.bigtable.admin.v2.ListSnapshotsRequest;
 import com.google.bigtable.admin.v2.Snapshot;
 import com.google.bigtable.admin.v2.SnapshotTableRequest;
@@ -30,6 +32,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableTableAdminClient;
 import com.google.cloud.bigtable.grpc.BigtableClusterName;
+import com.google.cloud.bigtable.grpc.BigtableInstanceClient;
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.hbase.util.ModifyTableBuilder;
@@ -103,11 +106,12 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
   private final TableAdapter2x tableAdapter2x;
   private final CommonConnection asyncConnection;
   private BigtableClusterName bigtableSnapshotClusterName;
+  private BigtableClusterName clusterName;
 
   public BigtableAsyncAdmin(CommonConnection asyncConnection) throws IOException {
     LOG.debug("Creating BigtableAsyncAdmin");
     BigtableOptions options = asyncConnection.getOptions();
-    this.bigtableTableAdminClient = asyncConnection.getSession().getTableAdminClientWrapper();
+    this.bigtableTableAdminClient = asyncConnection.getSession().getTableAdminClient();
     this.disabledTables = asyncConnection.getDisabledTables();
     this.bigtableInstanceName = options.getInstanceName();
     this.tableAdapter2x = new TableAdapter2x(options);
@@ -760,7 +764,19 @@ public class BigtableAsyncAdmin implements AsyncAdmin {
   }
 
   private BigtableClusterName getClusterName() throws IOException {
-    return asyncConnection.getSession().getClusterName();
+    if (clusterName == null) {
+      BigtableInstanceClient instanceClient = asyncConnection.getSession().getInstanceAdminClient();
+      ListClustersResponse response =
+          instanceClient.listCluster(
+              ListClustersRequest.newBuilder().setParent(bigtableInstanceName.toString()).build());
+
+      Preconditions.checkState(
+          response.getClustersCount() == 1,
+          "There can only be one cluster for this method to work.");
+
+      clusterName = new BigtableClusterName(response.getClusters(0).getName());
+    }
+    return clusterName;
   }
 
   // ****** TO BE IMPLEMENTED [end] ******

@@ -21,6 +21,7 @@ import com.google.api.core.InternalApi;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.core.IBulkMutation;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
@@ -80,13 +81,13 @@ public class BigtableBufferedMutatorHelper {
    * @param session a {@link BigtableSession} object.
    */
   public BigtableBufferedMutatorHelper(
-      HBaseRequestAdapter adapter, Configuration configuration, BigtableSession session) {
+      HBaseRequestAdapter adapter, Configuration configuration, IBigtableSession session) {
     this.adapter = adapter;
     this.configuration = configuration;
     this.options = session.getOptions();
     BigtableTableName tableName = this.adapter.getBigtableTableName();
-    this.bulkMutation = session.createBulkMutationWrapper(tableName);
-    this.dataClient = session.getDataClientWrapper();
+    this.bulkMutation = session.createBulkMutation(tableName);
+    this.dataClient = session.getDataClient();
     this.operationAccountant = new OperationAccountant();
   }
 

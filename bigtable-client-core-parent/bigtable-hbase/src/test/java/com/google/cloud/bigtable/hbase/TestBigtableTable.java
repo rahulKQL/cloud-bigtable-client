@@ -28,10 +28,10 @@ import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.core.IBigtableDataClient;
+import com.google.cloud.bigtable.core.IBigtableSession;
 import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
-import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
@@ -74,7 +74,7 @@ public class TestBigtableTable {
 
   @Mock private AbstractBigtableConnection mockConnection;
 
-  @Mock private BigtableSession mockSession;
+  @Mock private IBigtableSession mockSession;
 
   @Mock private IBigtableDataClient mockBigtableDataClient;
 
@@ -104,7 +104,7 @@ public class TestBigtableTable {
     when(mockConnection.getConfiguration()).thenReturn(config);
     when(mockConnection.getSession()).thenReturn(mockSession);
     when(mockSession.getOptions()).thenReturn(options);
-    when(mockSession.getDataClientWrapper()).thenReturn(mockBigtableDataClient);
+    when(mockSession.getDataClient()).thenReturn(mockBigtableDataClient);
     when(mockBigtableDataClient.readFlatRows(isA(Query.class))).thenReturn(mockResultScanner);
     table = new AbstractBigtableTable(mockConnection, hbaseAdapter) {};
   }

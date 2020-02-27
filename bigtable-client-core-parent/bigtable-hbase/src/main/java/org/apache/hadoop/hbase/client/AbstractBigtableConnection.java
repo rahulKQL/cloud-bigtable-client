@@ -19,7 +19,8 @@ package org.apache.hadoop.hbase.client;
 import com.google.api.core.InternalApi;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
-import com.google.cloud.bigtable.grpc.BigtableSession;
+import com.google.cloud.bigtable.core.IBigtableSession;
+import com.google.cloud.bigtable.grpc.BigtableSessionClassicClient;
 import com.google.cloud.bigtable.hbase.BigtableBufferedMutator;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.hbase.BigtableRegionLocator;
@@ -27,6 +28,7 @@ import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter.MutationAdapters;
 import com.google.cloud.bigtable.hbase.adapters.SampledRowKeysAdapter;
+import com.google.cloud.bigtable.hbase.wrapper.BigtableSessionGCJClient;
 import com.google.common.base.MoreObjects;
 import java.io.Closeable;
 import java.io.IOException;
@@ -69,7 +71,7 @@ public abstract class AbstractBigtableConnection
   private volatile ExecutorService batchPool = null;
   private ExecutorService bufferedMutatorExecutorService;
 
-  private BigtableSession session;
+  private IBigtableSession session;
 
   private volatile boolean cleanupPool = false;
   private final BigtableOptions options;
@@ -120,7 +122,12 @@ public abstract class AbstractBigtableConnection
 
     this.batchPool = pool;
     this.closed = false;
-    this.session = new BigtableSession(opts);
+
+    if (opts.useGCJClient()) {
+      this.session = new BigtableSessionGCJClient(conf);
+    } else {
+      this.session = new BigtableSessionClassicClient(opts);
+    }
 
     // Note: Reset options here because BigtableSession could potentially modify the input
     // options by resolving legacy parameters into current ones.
@@ -192,7 +199,7 @@ public abstract class AbstractBigtableConnection
 
     if (locator == null) {
       locator =
-          new BigtableRegionLocator(tableName, getOptions(), getSession().getDataClientWrapper()) {
+          new BigtableRegionLocator(tableName, getOptions(), getSession().getDataClient()) {
 
             @Override
             public SampledRowKeysAdapter getSampledRowKeysAdapter(
@@ -326,7 +333,7 @@ public abstract class AbstractBigtableConnection
    *
    * @return a {@link com.google.cloud.bigtable.grpc.BigtableSession} object.
    */
-  public BigtableSession getSession() {
+  public IBigtableSession getSession() {
     return session;
   }
 }

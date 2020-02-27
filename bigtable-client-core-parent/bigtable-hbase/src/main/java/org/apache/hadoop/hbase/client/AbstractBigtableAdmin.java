@@ -24,6 +24,8 @@ import com.google.api.core.InternalApi;
 import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.bigtable.admin.v2.CreateTableFromSnapshotRequest;
 import com.google.bigtable.admin.v2.DeleteSnapshotRequest;
+import com.google.bigtable.admin.v2.ListClustersRequest;
+import com.google.bigtable.admin.v2.ListClustersResponse;
 import com.google.bigtable.admin.v2.SnapshotTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
 import com.google.cloud.bigtable.admin.v2.models.ModifyColumnFamiliesRequest;
@@ -32,6 +34,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.core.IBigtableTableAdminClient;
 import com.google.cloud.bigtable.grpc.BigtableClusterName;
+import com.google.cloud.bigtable.grpc.BigtableInstanceClient;
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.cloud.bigtable.hbase.adapters.admin.TableAdapter;
@@ -103,6 +106,7 @@ public abstract class AbstractBigtableAdmin implements Admin {
   protected final IBigtableTableAdminClient tableAdminClientWrapper;
   protected final BigtableInstanceName bigtableInstanceName;
   private BigtableClusterName bigtableSnapshotClusterName;
+  private BigtableClusterName clusterName;
   protected final TableAdapter tableAdapter;
 
   /**
@@ -119,7 +123,7 @@ public abstract class AbstractBigtableAdmin implements Admin {
     disabledTables = connection.getDisabledTables();
     bigtableInstanceName = options.getInstanceName();
     tableAdapter = new TableAdapter(bigtableInstanceName);
-    tableAdminClientWrapper = connection.getSession().getTableAdminClientWrapper();
+    tableAdminClientWrapper = connection.getSession().getTableAdminClient();
 
     String clusterId =
         configuration.get(BigtableOptionsFactory.BIGTABLE_SNAPSHOT_CLUSTER_ID_KEY, null);
@@ -972,8 +976,20 @@ public abstract class AbstractBigtableAdmin implements Admin {
     }
   }
 
-  protected BigtableClusterName getClusterName() throws IOException {
-    return connection.getSession().getClusterName();
+  private BigtableClusterName getClusterName() throws IOException {
+    if (clusterName == null) {
+      BigtableInstanceClient instanceClient = connection.getSession().getInstanceAdminClient();
+      ListClustersResponse response =
+          instanceClient.listCluster(
+              ListClustersRequest.newBuilder().setParent(bigtableInstanceName.toString()).build());
+
+      Preconditions.checkState(
+          response.getClustersCount() == 1,
+          "There can only be one cluster for this method to work.");
+
+      clusterName = new BigtableClusterName(response.getClusters(0).getName());
+    }
+    return clusterName;
   }
 
   protected BigtableClusterName getSnapshotClusterName() throws IOException {
