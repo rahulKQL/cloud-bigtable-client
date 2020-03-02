@@ -102,6 +102,7 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
     super(configuration);
   }
 
+  // <editor-fold desc="Public API">
   @InternalApi
   public boolean isChannelPoolCachingEnabled() {
     // This is primarily used by Dataflow where connections open and close often. This is a
@@ -109,7 +110,6 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
     return configuration.getBoolean(BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL, false);
   }
 
-  // <editor-fold desc="Public Utility">
   /**
    * Utility to convert {@link Configuration} to {@link BigtableDataSettings}.
    *

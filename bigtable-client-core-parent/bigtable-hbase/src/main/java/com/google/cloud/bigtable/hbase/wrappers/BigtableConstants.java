@@ -17,7 +17,6 @@ package com.google.cloud.bigtable.hbase.wrappers;
 
 import com.google.api.core.InternalApi;
 
-/** For internal use only - public for technical reasons. */
 @InternalApi("For internal usage only")
 class BigtableConstants {
 

@@ -296,7 +296,7 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
     retryOptionsBuilder.setAllowRetriesWithoutTimestamp(allowRetriesWithoutTimestamp);
 
     String retryCodes = configuration.get(ADDITIONAL_RETRY_CODES, "");
-    String codes[] = retryCodes.split(",");
+    String[] codes = retryCodes.split(",");
     for (String stringCode : codes) {
       String trimmed = stringCode.trim();
       if (trimmed.isEmpty()) {

@@ -82,6 +82,7 @@ public class TestBigtableHBaseVeneerSettings {
   public void setup() {
     configuration = new Configuration(false);
     configuration.set(BigtableOptionsFactory.BIGTABLE_HOST_KEY, TEST_HOST);
+    configuration.set(BIGTABLE_ADMIN_HOST_KEY, TEST_HOST);
     configuration.set(BigtableOptionsFactory.PROJECT_ID_KEY, TEST_PROJECT_ID);
     configuration.set(BigtableOptionsFactory.INSTANCE_ID_KEY, TEST_INSTANCE_ID);
     configuration.set(BigtableOptionsFactory.BIGTABLE_USE_GCJ_CLIENT, "true");
@@ -109,6 +110,10 @@ public class TestBigtableHBaseVeneerSettings {
     assertEquals(TEST_PROJECT_ID, dataSettings.getProjectId());
     assertEquals(TEST_INSTANCE_ID, dataSettings.getInstanceId());
     assertEquals(appProfileId, dataSettings.getAppProfileId());
+
+    assertEquals(TEST_HOST, settingUtils.getDataHost());
+    assertEquals(TEST_PORT, settingUtils.getPort());
+    assertEquals(TEST_HOST, settingUtils.getAdminHost());
 
     assertEquals(TEST_HOST + ":" + TEST_PORT, dataSettings.getStubSettings().getEndpoint());
     Map<String, String> headers = dataSettings.getStubSettings().getHeaderProvider().getHeaders();
@@ -336,14 +341,15 @@ public class TestBigtableHBaseVeneerSettings {
     configuration.setLong(MAX_ELAPSED_BACKOFF_MILLIS_KEY, autoFlushMs);
     configuration.setLong(BIGTABLE_BUFFERED_MUTATOR_MAX_MEMORY_KEY, maxMemory);
 
-    BigtableDataSettings settings =
-        ((BigtableHBaseVeneerSettings) BigtableHBaseVeneerSettings.create(configuration))
-            .getDataSettings();
+    BigtableHBaseVeneerSettings settingUtils =
+        ((BigtableHBaseVeneerSettings) BigtableHBaseVeneerSettings.create(configuration));
+    BigtableDataSettings settings = settingUtils.getDataSettings();
 
     BatchingSettings batchingSettings =
         settings.getStubSettings().bulkMutateRowsSettings().getBatchingSettings();
     assertEquals(ofMillis(autoFlushMs), batchingSettings.getDelayThreshold());
     assertEquals(Long.valueOf(bulkMaxReqSize), batchingSettings.getRequestByteThreshold());
+    assertEquals(maxRowKeyCount, settingUtils.getBulkMaxRowCount());
     assertEquals(Long.valueOf(maxRowKeyCount), batchingSettings.getElementCountThreshold());
     assertEquals(
         Long.valueOf(maxInflightRPC * maxRowKeyCount),
