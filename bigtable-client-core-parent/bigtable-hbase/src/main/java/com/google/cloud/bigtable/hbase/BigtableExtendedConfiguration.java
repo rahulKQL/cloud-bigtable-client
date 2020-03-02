@@ -10,7 +10,7 @@ import org.apache.hadoop.conf.Configuration;
  * @see BigtableConfiguration#withCredentials(Configuration, Credentials).
  */
 @InternalExtensionOnly
-class BigtableExtendedConfiguration extends Configuration {
+public class BigtableExtendedConfiguration extends Configuration {
   private Credentials credentials;
 
   BigtableExtendedConfiguration(Configuration conf, Credentials credentials) {
