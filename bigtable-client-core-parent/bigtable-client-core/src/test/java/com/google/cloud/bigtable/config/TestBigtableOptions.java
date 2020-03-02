@@ -132,6 +132,14 @@ public class TestBigtableOptions {
     Assert.assertEquals(300_000, options.getRetryOptions().getMaxElapsedBackoffMillis());
   }
 
+  @Test
+  public void testBuilder_getters() {
+    BigtableOptions.Builder optionsBuilder = BigtableOptions.builder();
+    Assert.assertEquals(BulkOptions.builder().build(), optionsBuilder.getBulkOptions());
+    Assert.assertEquals(CallOptionsConfig.builder().build(), optionsBuilder.getCallOptionsConfig());
+    Assert.assertEquals(RetryOptions.builder().build(), optionsBuilder.getRetryOptions());
+  }
+
   /**
    * This is a dirty way to override the environment that is accessible to a test. It only modifies
    * the JVM's view of the environment, not the environment itself. From:
