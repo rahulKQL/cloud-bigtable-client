@@ -14,6 +14,8 @@
 package com.google.cloud.bigtable.hbase.adapters.read;
 
 import com.google.api.core.InternalApi;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.HConstants;
@@ -38,6 +40,7 @@ public class RowCell implements Cell {
   private final byte[] qualifierArray;
   private final long timestamp;
   private final byte[] valueArray;
+  private final List<String> labelArray;
 
   /**
    * Constructor for RowCell.
@@ -54,11 +57,31 @@ public class RowCell implements Cell {
       byte[] qualifierArray,
       long timestamp,
       byte[] valueArray) {
+    this(rowArray, familyArray, qualifierArray, timestamp, ImmutableList.<String>of(), valueArray);
+  }
+
+  /**
+   * Constructor for RowCell.
+   *
+   * @param rowArray an array of byte.
+   * @param familyArray an array of byte.
+   * @param qualifierArray an array of byte.
+   * @param timestamp a long.
+   * @param valueArray an array of byte.
+   */
+  public RowCell(
+      byte[] rowArray,
+      byte[] familyArray,
+      byte[] qualifierArray,
+      long timestamp,
+      List<String> labelArray,
+      byte[] valueArray) {
     this.rowArray = rowArray;
     this.familyArray = familyArray;
     this.qualifierArray = qualifierArray;
     this.timestamp = timestamp;
     this.valueArray = valueArray;
+    this.labelArray = labelArray;
   }
 
   /** {@inheritDoc} */
@@ -138,6 +161,10 @@ public class RowCell implements Cell {
   @Override
   public long getSequenceId() {
     return 0;
+  }
+
+  public List<String> getLabels() {
+    return labelArray;
   }
 
   /** {@inheritDoc} */
@@ -225,6 +252,7 @@ public class RowCell implements Cell {
   //
   // ---------------------------------------------------------------------------
 
+  // TODO: add labels in this toString().
   @Override
   public String toString() {
     if (this.rowArray == null || this.rowArray.length == 0) {
