@@ -15,11 +15,22 @@
  */
 package com.google.cloud.bigtable.hbase.wrappers;
 
+import com.google.cloud.bigtable.hbase.wrappers.classic.BigtableClassicApi;
+import com.google.cloud.bigtable.hbase.wrappers.classic.BigtableHBaseClassicSettings;
+import com.google.cloud.bigtable.hbase.wrappers.veneer.BigtableHBaseVeneerSettings;
 import java.io.IOException;
 
 public abstract class BigtableWrapper {
 
   private final BigtableHBaseSettings hBaseSettings;
+
+  public static BigtableWrapper create(BigtableHBaseSettings settings) throws IOException {
+    if (settings instanceof BigtableHBaseVeneerSettings) {
+      throw new UnsupportedOperationException("Veneer Client is not supported yet.");
+    } else {
+      return new BigtableClassicApi((BigtableHBaseClassicSettings) settings);
+    }
+  }
 
   public BigtableWrapper(BigtableHBaseSettings hbaseSettings) {
     this.hBaseSettings = hbaseSettings;
