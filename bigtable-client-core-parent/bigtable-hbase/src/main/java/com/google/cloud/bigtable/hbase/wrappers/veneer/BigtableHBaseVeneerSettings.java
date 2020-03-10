@@ -112,6 +112,7 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
     this.tableAdminSettings = buildBigtableTableAdminSettings();
 
     if (!isNullOrEmpty(configuration.get(BIGTABLE_EMULATOR_HOST_KEY))) {
+      LOG.info("bigtable emulator does not support Instance Admin client.");
       instanceAdminSettings = null;
     } else {
       instanceAdminSettings = buildBigtableInstanceAdminSettings();
