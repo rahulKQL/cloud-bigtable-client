@@ -153,7 +153,13 @@ public class BigtableOptions implements Serializable, Cloneable {
       options.useCachedDataPool = false;
       options.useGCJClient = false;
 
-      options.bulkOptions = BulkOptions.builder().build();
+      options.bulkOptions =
+          BulkOptions.builder()
+              .setMaxInflightRpcs(
+                  BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT
+                      * options.dataChannelCount)
+              .build();
+
       options.retryOptions = new RetryOptions.Builder().build();
       options.callOptionsConfig = CallOptionsConfig.builder().build();
       // CredentialOptions.defaultCredentials() gets credentials from well known locations, such as

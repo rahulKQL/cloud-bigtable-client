@@ -135,7 +135,13 @@ public class TestBigtableOptions {
   @Test
   public void testBuilder_getters() {
     BigtableOptions.Builder optionsBuilder = BigtableOptions.builder();
-    Assert.assertEquals(BulkOptions.builder().build(), optionsBuilder.getBulkOptions());
+    Assert.assertEquals(
+        BulkOptions.builder()
+            .setMaxInflightRpcs(
+                BulkOptions.BIGTABLE_MAX_INFLIGHT_RPCS_PER_CHANNEL_DEFAULT
+                    * optionsBuilder.getDataChannelCount())
+            .build(),
+        optionsBuilder.getBulkOptions());
     Assert.assertEquals(CallOptionsConfig.builder().build(), optionsBuilder.getCallOptionsConfig());
     Assert.assertEquals(RetryOptions.builder().build(), optionsBuilder.getRetryOptions());
   }

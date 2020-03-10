@@ -63,6 +63,7 @@ import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.api.gax.rpc.StubSettings;
 import com.google.api.gax.rpc.TransportChannelProvider;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountJwtAccessCredentials;
@@ -78,7 +79,6 @@ import com.google.cloud.bigtable.hbase.wrappers.BigtableHBaseSettings;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.Status;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -108,13 +108,13 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
   public BigtableHBaseVeneerSettings(Configuration configuration) throws IOException {
     super(configuration);
     this.configuration = configuration;
-    this.dataSettings = buildBigtableDataSettings().build();
-    this.tableAdminSettings = buildBigtableTableAdminSettings().build();
+    this.dataSettings = buildBigtableDataSettings();
+    this.tableAdminSettings = buildBigtableTableAdminSettings();
 
     if (!isNullOrEmpty(configuration.get(BIGTABLE_EMULATOR_HOST_KEY))) {
       instanceAdminSettings = null;
     } else {
-      instanceAdminSettings = buildBigtableInstanceAdminSettings().build();
+      instanceAdminSettings = buildBigtableInstanceAdminSettings();
     }
   }
 
@@ -164,15 +164,13 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
   }
 
   /** Utility to convert {@link Configuration} to {@link BigtableInstanceAdminSettings}. */
+  @Nullable
   public BigtableInstanceAdminSettings getInstanceAdminSettings() {
-    if (!isNullOrEmpty(configuration.get(BIGTABLE_EMULATOR_HOST_KEY))) {
-      return null;
-    }
     return instanceAdminSettings;
   }
 
   // ************** Private Helpers **************
-  private BigtableDataSettings.Builder buildBigtableDataSettings() throws IOException {
+  private BigtableDataSettings buildBigtableDataSettings() throws IOException {
     BigtableDataSettings.Builder dataBuilder =
         BigtableDataSettings.newBuilder()
             .setProjectId(getProjectId())
@@ -191,47 +189,26 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
 
     buildCredentialProvider(stubSettings);
 
-    String shortRpcTimeoutStr = configuration.get(BIGTABLE_RPC_TIMEOUT_MS_KEY);
-    if (!isNullOrEmpty(shortRpcTimeoutStr)) {
-      // rpcTimeout & totalTimeout for non-retry operations.
-      Duration shortRpcTimeout = ofMillis(Long.parseLong(shortRpcTimeoutStr));
-
-      stubSettings.checkAndMutateRowSettings().setSimpleTimeoutNoRetries(shortRpcTimeout);
-
-      stubSettings.readModifyWriteRowSettings().setSimpleTimeoutNoRetries(shortRpcTimeout);
-    }
-
+    // RPC methods
     buildBulkMutationsSettings(stubSettings);
 
     buildBulkReadRowsSettings(stubSettings);
 
     buildReadRowsSettings(stubSettings);
 
-    stubSettings
-        .readRowSettings()
-        .setRetryableCodes(buildRetryCodes(stubSettings.readRowSettings().getRetryableCodes()))
-        .setRetrySettings(
-            buildIdempotentRetrySettings(stubSettings.readRowSettings().getRetrySettings()));
+    buildNonIdempotentCallSettings(stubSettings.checkAndMutateRowSettings());
+    buildNonIdempotentCallSettings(stubSettings.readModifyWriteRowSettings());
 
-    stubSettings
-        .mutateRowSettings()
-        .setRetryableCodes(buildRetryCodes(stubSettings.mutateRowSettings().getRetryableCodes()))
-        .setRetrySettings(
-            buildIdempotentRetrySettings(stubSettings.mutateRowSettings().getRetrySettings()));
-
-    stubSettings
-        .sampleRowKeysSettings()
-        .setRetryableCodes(
-            buildRetryCodes(stubSettings.sampleRowKeysSettings().getRetryableCodes()))
-        .setRetrySettings(
-            buildIdempotentRetrySettings(stubSettings.sampleRowKeysSettings().getRetrySettings()));
+    buildIdempotentCallSettings(stubSettings.readRowSettings());
+    buildIdempotentCallSettings(stubSettings.mutateRowSettings());
+    buildIdempotentCallSettings(stubSettings.sampleRowKeysSettings());
 
     buildEmulatorSettings(stubSettings);
 
-    return dataBuilder;
+    return dataBuilder.build();
   }
 
-  private BigtableTableAdminSettings.Builder buildBigtableTableAdminSettings() throws IOException {
+  private BigtableTableAdminSettings buildBigtableTableAdminSettings() throws IOException {
     BigtableTableAdminSettings.Builder adminBuilder =
         BigtableTableAdminSettings.newBuilder()
             .setProjectId(getProjectId())
@@ -247,11 +224,10 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
 
     buildEmulatorSettings(stubSettings);
 
-    return adminBuilder;
+    return adminBuilder.build();
   }
 
-  private BigtableInstanceAdminSettings.Builder buildBigtableInstanceAdminSettings()
-      throws IOException {
+  private BigtableInstanceAdminSettings buildBigtableInstanceAdminSettings() throws IOException {
     BigtableInstanceAdminSettings.Builder instanceAdminBuilder =
         BigtableInstanceAdminSettings.newBuilder().setProjectId(getProjectId());
 
@@ -263,7 +239,7 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
 
     buildCredentialProvider(stubSettings);
 
-    return instanceAdminBuilder;
+    return instanceAdminBuilder.build();
   }
 
   private void buildEndpoints(StubSettings.Builder stubSettings, String endpointKey) {
@@ -393,17 +369,8 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
     return channelBuilder.build();
   }
 
-  /** Creates {@link Set} of {@link StatusCode.Code} from {@link Status.Code} */
-  private Set<StatusCode.Code> buildRetryCodes(Set<StatusCode.Code> retryableCodes) {
+  private Set<StatusCode.Code> extractRetryCodesFromConfig() {
     ImmutableSet.Builder<StatusCode.Code> statusCodeBuilder = ImmutableSet.builder();
-
-    // Disables retries for all data operations
-    if (!configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, true)) {
-      return statusCodeBuilder.build();
-    }
-
-    statusCodeBuilder.addAll(retryableCodes);
-
     String retryCodes = configuration.get(ADDITIONAL_RETRY_CODES, "");
 
     for (String stringCode : retryCodes.split(",")) {
@@ -417,8 +384,29 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       statusCodeBuilder.add(code);
       LOG.debug("gRPC retry on: %s", stringCode);
     }
-
     return statusCodeBuilder.build();
+  }
+
+  private <Request, Response> void buildIdempotentCallSettings(
+      UnaryCallSettings.Builder<Request, Response> unaryCallSettings) {
+
+    ImmutableSet.Builder<StatusCode.Code> retryCodeBuilder = ImmutableSet.builder();
+    if (configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, true)) {
+      retryCodeBuilder
+          .addAll(extractRetryCodesFromConfig())
+          .addAll(unaryCallSettings.getRetryableCodes());
+    }
+
+    unaryCallSettings
+        .setRetryableCodes(retryCodeBuilder.build())
+        .setRetrySettings(buildIdempotentRetrySettings(unaryCallSettings.getRetrySettings()));
+  }
+
+  private void buildNonIdempotentCallSettings(UnaryCallSettings.Builder unaryCallSettings) {
+    String shortRpcTimeoutStr = configuration.get(BIGTABLE_RPC_TIMEOUT_MS_KEY);
+    if (!isNullOrEmpty(shortRpcTimeoutStr)) {
+      unaryCallSettings.setSimpleTimeoutNoRetries(ofMillis(Long.parseLong(shortRpcTimeoutStr)));
+    }
   }
 
   /** Creates {@link RetrySettings} for non-streaming VENEER_ADAPTER method. */
@@ -492,10 +480,17 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       batchMutateBuilder.setRequestByteThreshold(Long.valueOf(requestByteThresholdStr));
     }
 
+    ImmutableSet.Builder<StatusCode.Code> retryCodes = ImmutableSet.builder();
+    if (configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, true)) {
+      retryCodes
+          .addAll(extractRetryCodesFromConfig())
+          .addAll(builder.bulkMutateRowsSettings().getRetryableCodes());
+    }
+
     builder
         .bulkMutateRowsSettings()
         .setBatchingSettings(batchMutateBuilder.build())
-        .setRetryableCodes(buildRetryCodes(builder.bulkMutateRowsSettings().getRetryableCodes()))
+        .setRetryableCodes(retryCodes.build())
         .setRetrySettings(
             buildIdempotentRetrySettings(builder.bulkMutateRowsSettings().getRetrySettings()));
   }
@@ -509,10 +504,17 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       bulkReadBatchingBuilder.setElementCountThreshold(Long.valueOf(bulkMaxRowKeyCountStr));
     }
 
+    ImmutableSet.Builder<StatusCode.Code> retryCodes = ImmutableSet.builder();
+    if (configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, true)) {
+      retryCodes
+          .addAll(extractRetryCodesFromConfig())
+          .addAll(builder.bulkReadRowsSettings().getRetryableCodes());
+    }
+
     builder
         .bulkReadRowsSettings()
         .setBatchingSettings(bulkReadBatchingBuilder.build())
-        .setRetryableCodes(buildRetryCodes(builder.bulkReadRowsSettings().getRetryableCodes()))
+        .setRetryableCodes(retryCodes.build())
         .setRetrySettings(
             buildIdempotentRetrySettings(builder.bulkReadRowsSettings().getRetrySettings()));
   }
@@ -552,9 +554,16 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       }
     }
 
+    ImmutableSet.Builder<StatusCode.Code> retryCodes = ImmutableSet.builder();
+    if (configuration.getBoolean(ENABLE_GRPC_RETRIES_KEY, true)) {
+      retryCodes
+          .addAll(extractRetryCodesFromConfig())
+          .addAll(stubSettings.readRowsSettings().getRetryableCodes());
+    }
+
     stubSettings
         .readRowsSettings()
-        .setRetryableCodes(buildRetryCodes(stubSettings.readRowsSettings().getRetryableCodes()))
+        .setRetryableCodes(retryCodes.build())
         .setRetrySettings(retryBuilder.build());
   }
 
