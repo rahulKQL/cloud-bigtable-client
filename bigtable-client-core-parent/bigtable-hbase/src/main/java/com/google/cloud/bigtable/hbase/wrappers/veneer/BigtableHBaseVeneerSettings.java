@@ -37,7 +37,6 @@ import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_SE
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_SERVICE_ACCOUNT_P12_KEYFILE_LOCATION_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_PLAINTEXT_NEGOTIATION;
-import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_TIMEOUTS_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.CUSTOM_USER_AGENT_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.ENABLE_GRPC_RETRIES_KEY;
@@ -55,7 +54,6 @@ import com.google.api.core.ApiFunction;
 import com.google.api.core.InternalApi;
 import com.google.api.gax.batching.BatchingSettings;
 import com.google.api.gax.batching.FlowControlSettings;
-import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
@@ -63,12 +61,14 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.api.gax.rpc.StubSettings;
 import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountJwtAccessCredentials;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminSettings;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
+import com.google.cloud.bigtable.admin.v2.stub.BigtableInstanceAdminStubSettings;
 import com.google.cloud.bigtable.admin.v2.stub.BigtableTableAdminStubSettings;
 import com.google.cloud.bigtable.config.BigtableVersionInfo;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
@@ -86,6 +86,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.util.VersionInfo;
 import org.threeten.bp.Duration;
@@ -102,13 +103,19 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
   private final Configuration configuration;
   private final BigtableDataSettings dataSettings;
   private final BigtableTableAdminSettings tableAdminSettings;
-  private BigtableInstanceAdminSettings instanceAdminSettings;
+  @Nullable private final BigtableInstanceAdminSettings instanceAdminSettings;
 
   public BigtableHBaseVeneerSettings(Configuration configuration) throws IOException {
     super(configuration);
     this.configuration = configuration;
     this.dataSettings = buildBigtableDataSettings().build();
     this.tableAdminSettings = buildBigtableTableAdminSettings().build();
+
+    if (!isNullOrEmpty(configuration.get(BIGTABLE_EMULATOR_HOST_KEY))) {
+      instanceAdminSettings = null;
+    } else {
+      instanceAdminSettings = buildBigtableInstanceAdminSettings().build();
+    }
   }
 
   @Override
@@ -139,7 +146,7 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
         .intValue();
   }
 
-  // <editor-fold desc="Public API">
+  // ************** Getters **************
   public boolean isChannelPoolCachingEnabled() {
     // This is primarily used by Dataflow where connections open and close often. This is a
     // performance optimization that will reduce the cost to open connections.
@@ -157,40 +164,19 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
   }
 
   /** Utility to convert {@link Configuration} to {@link BigtableInstanceAdminSettings}. */
-  public BigtableInstanceAdminSettings getInstanceAdminSettings() throws IOException {
-    Preconditions.checkState(
-        isNullOrEmpty(configuration.get(BIGTABLE_EMULATOR_HOST_KEY)),
-        "Instance admin does not support emulator");
-
-    if (instanceAdminSettings == null) {
-      BigtableInstanceAdminSettings.Builder builder =
-          BigtableInstanceAdminSettings.newBuilder().setProjectId(projectId);
-
-      String adminHostOverride = configuration.get(BIGTABLE_ADMIN_HOST_KEY);
-      String endpoint = adminHostOverride + ":" + getPort();
-      LOG.debug("Instance Admin endpoint host:port is %s.", endpoint);
-
-      builder.stubSettings().setHeaderProvider(buildHeaderProvider());
-
-      if (configuration instanceof BigtableExtendedConfiguration
-          || Boolean.parseBoolean(configuration.get(BIGTABLE_USE_SERVICE_ACCOUNTS_KEY))) {
-
-        builder.stubSettings().setCredentialsProvider(buildCredentialProvider());
-      } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY))) {
-        builder.stubSettings().setCredentialsProvider(NoCredentialsProvider.create());
-      }
-
-      instanceAdminSettings = builder.build();
+  public BigtableInstanceAdminSettings getInstanceAdminSettings() {
+    if (!isNullOrEmpty(configuration.get(BIGTABLE_EMULATOR_HOST_KEY))) {
+      return null;
     }
-
     return instanceAdminSettings;
   }
-  // </editor-fold>
 
-  // <editor-fold desc="Private Helpers">
+  // ************** Private Helpers **************
   private BigtableDataSettings.Builder buildBigtableDataSettings() throws IOException {
     BigtableDataSettings.Builder dataBuilder =
-        BigtableDataSettings.newBuilder().setProjectId(projectId).setInstanceId(instanceId);
+        BigtableDataSettings.newBuilder()
+            .setProjectId(getProjectId())
+            .setInstanceId(getInstanceId());
 
     String appProfileId = configuration.get(APP_PROFILE_ID_KEY);
     if (!isNullOrEmpty(appProfileId)) {
@@ -198,40 +184,17 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
     }
 
     EnhancedBigtableStubSettings.Builder stubSettings = dataBuilder.stubSettings();
-    String dataHostOverride = configuration.get(BIGTABLE_HOST_KEY);
-    if (!isNullOrEmpty(dataHostOverride)) {
 
-      String port = configuration.get(BIGTABLE_PORT_KEY);
-      if (isNullOrEmpty(port)) {
-        String endpoint = stubSettings.getEndpoint();
-        port = endpoint.substring(endpoint.lastIndexOf(":") + 1);
-      }
+    buildEndpoints(stubSettings, BIGTABLE_HOST_KEY);
 
-      String finalEndpoint = dataHostOverride + ":" + port;
-      LOG.debug("Data API endpoint hostname:portNumber is %s", finalEndpoint);
+    buildHeaderProvider(stubSettings);
 
-      stubSettings.setEndpoint(finalEndpoint);
-    }
-
-    stubSettings.setHeaderProvider(buildHeaderProvider());
-
-    if (configuration instanceof BigtableExtendedConfiguration
-        || Boolean.parseBoolean(configuration.get(BIGTABLE_USE_SERVICE_ACCOUNTS_KEY))) {
-      stubSettings.setCredentialsProvider(buildCredentialProvider());
-
-    } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY))) {
-      stubSettings.setCredentialsProvider(NoCredentialsProvider.create());
-    }
-
-    if (Boolean.parseBoolean(configuration.get(BIGTABLE_USE_PLAINTEXT_NEGOTIATION))) {
-      stubSettings.setTransportChannelProvider(
-          buildPlainTextChannelProvider(stubSettings.getEndpoint()));
-    }
+    buildCredentialProvider(stubSettings);
 
     String shortRpcTimeoutStr = configuration.get(BIGTABLE_RPC_TIMEOUT_MS_KEY);
-    if (shortRpcTimeoutStr != null) {
+    if (!isNullOrEmpty(shortRpcTimeoutStr)) {
       // rpcTimeout & totalTimeout for non-retry operations.
-      Duration shortRpcTimeout = ofMillis(Long.valueOf(shortRpcTimeoutStr));
+      Duration shortRpcTimeout = ofMillis(Long.parseLong(shortRpcTimeoutStr));
 
       stubSettings.checkAndMutateRowSettings().setSimpleTimeoutNoRetries(shortRpcTimeout);
 
@@ -263,23 +226,48 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
         .setRetrySettings(
             buildIdempotentRetrySettings(stubSettings.sampleRowKeysSettings().getRetrySettings()));
 
-    String emulatorHostPort = configuration.get(BIGTABLE_EMULATOR_HOST_KEY);
-    if (!isNullOrEmpty(emulatorHostPort)) {
-      stubSettings
-          .setCredentialsProvider(NoCredentialsProvider.create())
-          .setEndpoint(emulatorHostPort)
-          .setTransportChannelProvider(buildPlainTextChannelProvider(emulatorHostPort));
-    }
+    buildEmulatorSettings(stubSettings);
 
     return dataBuilder;
   }
 
   private BigtableTableAdminSettings.Builder buildBigtableTableAdminSettings() throws IOException {
     BigtableTableAdminSettings.Builder adminBuilder =
-        BigtableTableAdminSettings.newBuilder().setProjectId(projectId).setInstanceId(instanceId);
+        BigtableTableAdminSettings.newBuilder()
+            .setProjectId(getProjectId())
+            .setInstanceId(getInstanceId());
 
     BigtableTableAdminStubSettings.Builder stubSettings = adminBuilder.stubSettings();
-    String adminHostOverride = configuration.get(BIGTABLE_ADMIN_HOST_KEY);
+
+    buildEndpoints(stubSettings, BIGTABLE_ADMIN_HOST_KEY);
+
+    buildHeaderProvider(stubSettings);
+
+    buildCredentialProvider(stubSettings);
+
+    buildEmulatorSettings(stubSettings);
+
+    return adminBuilder;
+  }
+
+  private BigtableInstanceAdminSettings.Builder buildBigtableInstanceAdminSettings()
+      throws IOException {
+    BigtableInstanceAdminSettings.Builder instanceAdminBuilder =
+        BigtableInstanceAdminSettings.newBuilder().setProjectId(getProjectId());
+
+    BigtableInstanceAdminStubSettings.Builder stubSettings = instanceAdminBuilder.stubSettings();
+
+    buildEndpoints(stubSettings, BIGTABLE_ADMIN_HOST_KEY);
+
+    buildHeaderProvider(stubSettings);
+
+    buildCredentialProvider(stubSettings);
+
+    return instanceAdminBuilder;
+  }
+
+  private void buildEndpoints(StubSettings.Builder stubSettings, String endpointKey) {
+    String adminHostOverride = configuration.get(endpointKey);
     if (!isNullOrEmpty(adminHostOverride)) {
 
       String port = configuration.get(BIGTABLE_PORT_KEY);
@@ -289,38 +277,18 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       }
 
       String finalEndpoint = adminHostOverride + ":" + port;
-      LOG.debug("Admin API endpoint hostname:portNumber is %s", finalEndpoint);
-
+      LOG.debug("%s is configured at %s", endpointKey, finalEndpoint);
       stubSettings.setEndpoint(finalEndpoint);
-    }
-
-    stubSettings.setHeaderProvider(buildHeaderProvider());
-
-    if (configuration instanceof BigtableExtendedConfiguration
-        || Boolean.parseBoolean(configuration.get(BIGTABLE_USE_SERVICE_ACCOUNTS_KEY))) {
-      stubSettings.setCredentialsProvider(buildCredentialProvider());
-    } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY))) {
-      stubSettings.setCredentialsProvider(NoCredentialsProvider.create());
     }
 
     if (Boolean.parseBoolean(configuration.get(BIGTABLE_USE_PLAINTEXT_NEGOTIATION))) {
       stubSettings.setTransportChannelProvider(
           buildPlainTextChannelProvider(stubSettings.getEndpoint()));
     }
-
-    String emulatorHostPort = configuration.get(BIGTABLE_EMULATOR_HOST_KEY);
-    if (!isNullOrEmpty(emulatorHostPort)) {
-      stubSettings
-          .setCredentialsProvider(NoCredentialsProvider.create())
-          .setEndpoint(emulatorHostPort)
-          .setTransportChannelProvider(buildPlainTextChannelProvider(emulatorHostPort));
-    }
-
-    return adminBuilder;
   }
 
   /** Creates {@link HeaderProvider} with VENEER_ADAPTER as prefix for user agent */
-  private HeaderProvider buildHeaderProvider() {
+  private void buildHeaderProvider(StubSettings.Builder stubSettings) {
 
     // This information is in addition to bigtable-client-core version, and jdk version.
     StringBuilder agentBuilder = new StringBuilder();
@@ -330,22 +298,24 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       agentBuilder.append(',').append(customUserAgent);
     }
 
-    return FixedHeaderProvider.create(
-        USER_AGENT_KEY.name(), VENEER_ADAPTER + agentBuilder.toString());
+    stubSettings.setHeaderProvider(
+        FixedHeaderProvider.create(
+            USER_AGENT_KEY.name(), VENEER_ADAPTER + agentBuilder.toString()));
   }
 
-  private CredentialsProvider buildCredentialProvider() throws IOException {
+  private void buildCredentialProvider(StubSettings.Builder stubSettings) throws IOException {
     Credentials credentials = null;
-    LOG.debug("Using service accounts");
 
-    // This preserves user defined Credentials
     if (configuration instanceof BigtableExtendedConfiguration) {
       credentials = ((BigtableExtendedConfiguration) configuration).getCredentials();
 
-    } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY))) {
+    } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY))) {
+      stubSettings.setCredentialsProvider(NoCredentialsProvider.create());
+      LOG.info("Enabling the use of null credentials. This should not be used in production.");
+
+    } else if (!isNullOrEmpty(configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY))) {
       String jsonValue = configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY);
       LOG.debug("Using json value");
-
       Preconditions.checkState(
           !isNullOrEmpty(jsonValue), "service account json value is null or empty");
       credentials =
@@ -354,11 +324,9 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
 
     } else if (!isNullOrEmpty(
         configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY))) {
-
       String keyFileLocation =
           configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY);
       LOG.debug("Using json keyfile: %s", keyFileLocation);
-
       Preconditions.checkState(
           !isNullOrEmpty(keyFileLocation), "service account location is null or empty");
       credentials = GoogleCredentials.fromStream(new FileInputStream(keyFileLocation));
@@ -367,7 +335,6 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
 
       String serviceAccount = configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY);
       LOG.debug("Service account %s specified.", serviceAccount);
-
       String keyFileLocation = configuration.get(BIGTABLE_SERVICE_ACCOUNT_P12_KEYFILE_LOCATION_KEY);
       Preconditions.checkState(
           !isNullOrEmpty(keyFileLocation),
@@ -377,7 +344,9 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
       credentials = getCredentialFromPrivateKeyServiceAccount(serviceAccount, keyFileLocation);
     }
 
-    return FixedCredentialsProvider.create(credentials);
+    if (credentials != null) {
+      stubSettings.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
+    }
   }
 
   // copied over from CredentialFactory
@@ -487,8 +456,8 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
         builder.bulkMutateRowsSettings().getBatchingSettings().toBuilder();
 
     String autoFlushStr = configuration.get(BIGTABLE_BULK_AUTOFLUSH_MS_KEY);
-    if (autoFlushStr != null) {
-      long autoFlushMs = Long.valueOf(autoFlushStr);
+    if (!isNullOrEmpty(autoFlushStr)) {
+      long autoFlushMs = Long.parseLong(autoFlushStr);
       if (autoFlushMs > 0) {
         batchMutateBuilder.setDelayThreshold(ofMillis(autoFlushMs));
       }
@@ -588,5 +557,14 @@ public class BigtableHBaseVeneerSettings extends BigtableHBaseSettings {
         .setRetryableCodes(buildRetryCodes(stubSettings.readRowsSettings().getRetryableCodes()))
         .setRetrySettings(retryBuilder.build());
   }
-  // </editor-fold>
+
+  private void buildEmulatorSettings(StubSettings.Builder stubSettings) {
+    String emulatorHostPort = configuration.get(BIGTABLE_EMULATOR_HOST_KEY);
+    if (!isNullOrEmpty(emulatorHostPort)) {
+      stubSettings
+          .setCredentialsProvider(NoCredentialsProvider.create())
+          .setEndpoint(emulatorHostPort)
+          .setTransportChannelProvider(buildPlainTextChannelProvider(emulatorHostPort));
+    }
+  }
 }

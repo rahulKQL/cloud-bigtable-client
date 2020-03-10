@@ -42,7 +42,6 @@ import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_US
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_BULK_API;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_PLAINTEXT_NEGOTIATION;
-import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.BIGTABLE_USE_TIMEOUTS_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.CUSTOM_USER_AGENT_KEY;
 import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.ENABLE_GRPC_RETRIES_KEY;
@@ -86,48 +85,11 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
     this.configuration = configuration;
     BigtableOptions.Builder bigtableOptionsBuilder = BigtableOptions.builder();
 
-    bigtableOptionsBuilder.setProjectId(projectId).setInstanceId(instanceId);
-
-    String dataHost = configuration.get(BIGTABLE_HOST_KEY);
-    if (!isNullOrEmpty(dataHost)) {
-      bigtableOptionsBuilder.setDataHost(dataHost);
-    }
-
-    String adminHost = configuration.get(BIGTABLE_ADMIN_HOST_KEY);
-    if (!isNullOrEmpty(adminHost)) {
-      bigtableOptionsBuilder.setAdminHost(adminHost);
-    }
-
-    String port = configuration.get(BIGTABLE_PORT_KEY);
-    if (!isNullOrEmpty(port)) {
-      bigtableOptionsBuilder.setPort(Integer.parseInt(port));
-    }
+    bigtableOptionsBuilder.setProjectId(getProjectId()).setInstanceId(getInstanceId());
 
     String appProfileId = configuration.get(APP_PROFILE_ID_KEY);
     if (!isNullOrEmpty(appProfileId)) {
       bigtableOptionsBuilder.setAppProfileId(appProfileId);
-    }
-
-    String dataHostOverride = configuration.get(BIGTABLE_HOST_KEY);
-    if (!isNullOrEmpty(dataHostOverride)) {
-      LOG.debug("API Data endpoint host %s.", dataHostOverride);
-      bigtableOptionsBuilder.setDataHost(dataHostOverride);
-    }
-
-    String adminHostOverride = configuration.get(BIGTABLE_ADMIN_HOST_KEY);
-    if (!isNullOrEmpty(adminHostOverride)) {
-      LOG.debug("Admin endpoint host %s.", adminHostOverride);
-      bigtableOptionsBuilder.setAdminHost(adminHostOverride);
-    }
-
-    String portOverrideStr = configuration.get(BIGTABLE_PORT_KEY);
-    if (!isNullOrEmpty(portOverrideStr)) {
-      bigtableOptionsBuilder.setPort(Integer.parseInt(portOverrideStr));
-    }
-
-    String usePlaintextStr = configuration.get(BIGTABLE_USE_PLAINTEXT_NEGOTIATION);
-    if (!isNullOrEmpty(usePlaintextStr)) {
-      bigtableOptionsBuilder.setUsePlaintextNegotiation(Boolean.parseBoolean(usePlaintextStr));
     }
 
     buildBulkOptions(bigtableOptionsBuilder);
@@ -169,13 +131,11 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
     return bigtableOptions.getBulkOptions().getBulkMaxRowKeyCount();
   }
 
-  // <editor-fold desc="Public API">
   public BigtableOptions getBigtableOptions() {
     return bigtableOptions;
   }
-  // </editor-fold>
 
-  // <editor-fold desc="Private Helpers">
+  // ************** Private Helpers **************
   private void buildBulkOptions(BigtableOptions.Builder builder) {
     BulkOptions.Builder bulkOptionsBuilder = builder.getBulkOptions().toBuilder();
 
@@ -184,8 +144,10 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
       bulkOptionsBuilder.setAsyncMutatorWorkerCount(Integer.parseInt(asyncMutatorCount));
     }
 
-    bulkOptionsBuilder.setUseBulkApi(
-        Boolean.parseBoolean(configuration.get(BIGTABLE_USE_BULK_API)));
+    String useBulkApiStr = configuration.get(BIGTABLE_USE_BULK_API);
+    if (!isNullOrEmpty(useBulkApiStr)) {
+      bulkOptionsBuilder.setUseBulkApi(Boolean.parseBoolean(useBulkApiStr));
+    }
 
     String bulkMaxRowKeyCountStr = configuration.get(BIGTABLE_BULK_MAX_ROW_KEY_COUNT);
     if (!isNullOrEmpty(bulkMaxRowKeyCountStr)) {
@@ -229,15 +191,38 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
   }
 
   private void buildChannelOptions(BigtableOptions.Builder builder) {
+
+    String dataHostOverride = configuration.get(BIGTABLE_HOST_KEY);
+    if (!isNullOrEmpty(dataHostOverride)) {
+      LOG.debug("API Data endpoint host %s.", dataHostOverride);
+      builder.setDataHost(dataHostOverride);
+    }
+
+    String adminHostOverride = configuration.get(BIGTABLE_ADMIN_HOST_KEY);
+    if (!isNullOrEmpty(adminHostOverride)) {
+      LOG.debug("Admin endpoint host %s.", adminHostOverride);
+      builder.setAdminHost(adminHostOverride);
+    }
+
+    String portOverrideStr = configuration.get(BIGTABLE_PORT_KEY);
+    if (!isNullOrEmpty(portOverrideStr)) {
+      builder.setPort(Integer.parseInt(portOverrideStr));
+    }
+
+    String usePlaintextStr = configuration.get(BIGTABLE_USE_PLAINTEXT_NEGOTIATION);
+    if (!isNullOrEmpty(usePlaintextStr)) {
+      builder.setUsePlaintextNegotiation(Boolean.parseBoolean(usePlaintextStr));
+    }
+
     String channelCountStr = configuration.get(BIGTABLE_DATA_CHANNEL_COUNT_KEY);
-    if (channelCountStr != null) {
+    if (!isNullOrEmpty(channelCountStr)) {
       builder.setDataChannelCount(Integer.parseInt(channelCountStr));
     }
 
     // This is primarily used by Dataflow where connections open and close often. This is a
     // performance optimization that will reduce the cost to open connections.
     String useCachedDataPoolStr = configuration.get(BIGTABLE_USE_CACHED_DATA_CHANNEL_POOL);
-    if (useCachedDataPoolStr != null) {
+    if (!isNullOrEmpty(useCachedDataPoolStr)) {
       builder.setUseCachedDataPool(Boolean.parseBoolean(useCachedDataPoolStr));
     }
 
@@ -291,38 +276,32 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
       Credentials credentials = ((BigtableExtendedConfiguration) configuration).getCredentials();
       builder.setCredentialOptions(CredentialOptions.credential(credentials));
 
-      // Here default is true, if its false then none of the service account would be accounted.
-    } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_USE_SERVICE_ACCOUNTS_KEY))) {
-      LOG.debug("Using service accounts");
-
-      if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY) != null) {
-        String jsonValue = configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY);
-        LOG.debug("Using json value");
-        builder.setCredentialOptions(CredentialOptions.jsonCredentials(jsonValue));
-      } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY) != null) {
-        String keyFileLocation =
-            configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY);
-        LOG.debug("Using json keyfile: %s", keyFileLocation);
-        builder.setCredentialOptions(
-            CredentialOptions.jsonCredentials(new FileInputStream(keyFileLocation)));
-      } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY) != null) {
-        String serviceAccount = configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY);
-        LOG.debug("Service account %s specified.", serviceAccount);
-        String keyFileLocation =
-            configuration.get(BIGTABLE_SERVICE_ACCOUNT_P12_KEYFILE_LOCATION_KEY);
-        Preconditions.checkState(
-            !isNullOrEmpty(keyFileLocation),
-            "Key file location must be specified when setting service account email");
-        LOG.debug("Using p12 keyfile: %s", keyFileLocation);
-        builder.setCredentialOptions(
-            CredentialOptions.p12Credential(serviceAccount, keyFileLocation));
-      } else {
-        LOG.debug("Using default credentials.");
-        builder.setCredentialOptions(CredentialOptions.defaultCredentials());
-      }
     } else if (Boolean.parseBoolean(configuration.get(BIGTABLE_NULL_CREDENTIAL_ENABLE_KEY))) {
       builder.setCredentialOptions(CredentialOptions.nullCredential());
       LOG.info("Enabling the use of null credentials. This should not be used in production.");
+
+    } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY) != null) {
+      String jsonValue = configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY);
+      LOG.debug("Using json value");
+      builder.setCredentialOptions(CredentialOptions.jsonCredentials(jsonValue));
+
+    } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY) != null) {
+      String keyFileLocation =
+          configuration.get(BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY);
+      LOG.debug("Using json keyfile: %s", keyFileLocation);
+      builder.setCredentialOptions(
+          CredentialOptions.jsonCredentials(new FileInputStream(keyFileLocation)));
+
+    } else if (configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY) != null) {
+      String serviceAccount = configuration.get(BIGTABLE_SERVICE_ACCOUNT_EMAIL_KEY);
+      LOG.debug("Service account %s specified.", serviceAccount);
+      String keyFileLocation = configuration.get(BIGTABLE_SERVICE_ACCOUNT_P12_KEYFILE_LOCATION_KEY);
+      Preconditions.checkState(
+          !isNullOrEmpty(keyFileLocation),
+          "Key file location must be specified when setting service account email");
+      LOG.debug("Using p12 keyfile: %s", keyFileLocation);
+      builder.setCredentialOptions(
+          CredentialOptions.p12Credential(serviceAccount, keyFileLocation));
     }
   }
 
@@ -378,6 +357,7 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
       retryOptionsBuilder.setReadPartialRowTimeoutMillis(Integer.parseInt(readPartialRowTimeoutMs));
     }
 
+    // TODO: remove streamingBufferSize property, its not used anymore.
     String streamingBufferSize = configuration.get(READ_BUFFER_SIZE);
     if (!isNullOrEmpty(streamingBufferSize)) {
       LOG.debug("gRPC read buffer size (count): %d", streamingBufferSize);
@@ -392,5 +372,4 @@ public class BigtableHBaseClassicSettings extends BigtableHBaseSettings {
 
     builder.setRetryOptions(retryOptionsBuilder.build());
   }
-  // </editor-fold>
 }

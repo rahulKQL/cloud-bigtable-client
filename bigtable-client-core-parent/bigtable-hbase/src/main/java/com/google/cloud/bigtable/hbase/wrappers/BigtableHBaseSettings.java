@@ -21,8 +21,8 @@ import static com.google.cloud.bigtable.hbase.BigtableOptionsFactory.PROJECT_ID_
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.config.Logger;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
+import com.google.cloud.bigtable.hbase.util.Logger;
 import com.google.cloud.bigtable.hbase.wrappers.classic.BigtableHBaseClassicSettings;
 import com.google.cloud.bigtable.hbase.wrappers.veneer.BigtableHBaseVeneerSettings;
 import com.google.common.base.Preconditions;
@@ -36,8 +36,8 @@ public abstract class BigtableHBaseSettings {
   protected static final Logger LOG = new Logger(BigtableOptionsFactory.class);
 
   private final Configuration configuration;
-  protected final String projectId;
-  protected final String instanceId;
+  private final String projectId;
+  private final String instanceId;
 
   public static BigtableHBaseSettings create(Configuration configuration) throws IOException {
     if (configuration.getBoolean(BIGTABLE_USE_GCJ_CLIENT, false)) {
