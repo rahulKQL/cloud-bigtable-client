@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.bigtable.hbase.wrappers;
+package com.google.cloud.bigtable.hbase.wrappers.classic;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,7 +25,7 @@ import com.google.cloud.bigtable.config.CredentialFactory;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
-import com.google.cloud.bigtable.hbase.wrappers.classic.BigtableHBaseClassicSettings;
+import com.google.cloud.bigtable.hbase.wrappers.BigtableHBaseSettings;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
