@@ -17,18 +17,19 @@ package com.google.cloud.bigtable.hbase;
 
 import com.google.api.core.InternalApi;
 import com.google.api.gax.rpc.ApiExceptions;
-import com.google.cloud.bigtable.core.IBigtableDataClient;
+import com.google.cloud.bigtable.data.v2.internal.RequestContext;
 import com.google.cloud.bigtable.data.v2.models.ConditionalRowMutation;
 import com.google.cloud.bigtable.data.v2.models.ReadModifyWriteRow;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.grpc.BigtableSession;
-import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.Adapters;
 import com.google.cloud.bigtable.hbase.adapters.CheckAndMutateUtil;
 import com.google.cloud.bigtable.hbase.adapters.HBaseRequestAdapter;
 import com.google.cloud.bigtable.hbase.adapters.read.GetAdapter;
 import com.google.cloud.bigtable.hbase.util.Logger;
 import com.google.cloud.bigtable.hbase.wrappers.BigtableHBaseSettings;
+import com.google.cloud.bigtable.hbase.wrappers.DataClientWrapper;
+import com.google.cloud.bigtable.hbase.wrappers.classic.DataClientClassicApi;
 import com.google.cloud.bigtable.metrics.BigtableClientMetrics;
 import com.google.cloud.bigtable.metrics.BigtableClientMetrics.MetricLevel;
 import com.google.cloud.bigtable.metrics.Timer;
@@ -110,7 +111,7 @@ public abstract class AbstractBigtableTable implements Table {
   protected final BigtableHBaseSettings settings;
   protected final HBaseRequestAdapter hbaseAdapter;
 
-  protected final IBigtableDataClient clientWrapper;
+  protected final DataClientWrapper clientWrapper;
   private BatchExecutor batchExecutor;
   protected final AbstractBigtableConnection bigtableConnection;
   private TableMetrics metrics = new TableMetrics();
@@ -124,11 +125,17 @@ public abstract class AbstractBigtableTable implements Table {
   public AbstractBigtableTable(
       AbstractBigtableConnection bigtableConnection, HBaseRequestAdapter hbaseAdapter) {
     this.bigtableConnection = bigtableConnection;
-    BigtableSession session = bigtableConnection.getSession();
     this.settings = bigtableConnection.getBigtableHBaseSettings();
-    this.clientWrapper = session.getDataClientWrapper();
     this.hbaseAdapter = hbaseAdapter;
     this.tableName = hbaseAdapter.getTableName();
+    BigtableSession session = bigtableConnection.getSession();
+    this.clientWrapper =
+        new DataClientClassicApi(
+            session,
+            RequestContext.create(
+                settings.getProjectId(),
+                settings.getInstanceId(),
+                session.getOptions().getAppProfileId()));
   }
 
   /** {@inheritDoc} */
@@ -157,8 +164,8 @@ public abstract class AbstractBigtableTable implements Table {
   public boolean exists(Get get) throws IOException {
     try (Scope scope = TRACER.spanBuilder("BigtableTable.exists").startScopedSpan()) {
       LOG.trace("exists(Get)");
-      return !convertToResult(getResults(GetAdapter.setCheckExistenceOnly(get), "exists"))
-          .isEmpty();
+      Result result = getResults(GetAdapter.setCheckExistenceOnly(get), "exists");
+      return result != null && !result.isEmpty();
     }
   }
 
@@ -256,13 +263,15 @@ public abstract class AbstractBigtableTable implements Table {
   public Result get(Get get) throws IOException {
     LOG.trace("get(Get)");
     try (Scope scope = TRACER.spanBuilder("BigtableTable.get").startScopedSpan()) {
-      return convertToResult(getResults(get, "get"));
+      return getResults(get, "get");
     }
   }
 
-  private FlatRow getResults(Get get, String method) {
+  private Result getResults(Get get, String method) {
     try (Timer.Context ignored = metrics.getTimer.time()) {
-      List<FlatRow> list = clientWrapper.readFlatRowsList(hbaseAdapter.adapt(get));
+      List<Result> list =
+          ApiExceptions.callAndTranslateApiException(
+              clientWrapper.readRowsAsync(hbaseAdapter.adapt(get)));
       switch (list.size()) {
         case 0:
           return null;
@@ -274,22 +283,14 @@ public abstract class AbstractBigtableTable implements Table {
     }
   }
 
-  protected Result convertToResult(FlatRow row) {
-    if (row == null) {
-      return Adapters.FLAT_ROW_ADAPTER.adaptResponse(null);
-    } else {
-      return Adapters.FLAT_ROW_ADAPTER.adaptResponse(row);
-    }
-  }
-
   /** {@inheritDoc} */
   @Override
   public ResultScanner getScanner(Scan scan) throws IOException {
     LOG.trace("getScanner(Scan)");
     Span span = TRACER.spanBuilder("BigtableTable.scan").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      com.google.cloud.bigtable.grpc.scanner.ResultScanner<FlatRow> scanner =
-          clientWrapper.readFlatRows(hbaseAdapter.adapt(scan));
+      com.google.cloud.bigtable.grpc.scanner.ResultScanner<Result> scanner =
+          clientWrapper.readRows(hbaseAdapter.adapt(scan));
       if (hasWhileMatchFilter(scan.getFilter())) {
         return Adapters.BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER.adapt(scanner, span);
       }
@@ -512,12 +513,11 @@ public abstract class AbstractBigtableTable implements Table {
     LOG.trace("append(Append)");
     Span span = TRACER.spanBuilder("BigtableTable.append").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
-      com.google.cloud.bigtable.data.v2.models.Row response =
-          clientWrapper.readModifyWriteRow(hbaseAdapter.adapt(append));
       // The bigtable API will always return the mutated results. In order to maintain
       // compatibility, simply return null when results were not requested.
       if (append.isReturnResults()) {
-        return Adapters.ROW_ADAPTER.adaptResponse(response);
+        return ApiExceptions.callAndTranslateApiException(
+            clientWrapper.readModifyWriteRowAsync(hbaseAdapter.adapt(append)));
       } else {
         return null;
       }
@@ -536,7 +536,8 @@ public abstract class AbstractBigtableTable implements Table {
     Span span = TRACER.spanBuilder("BigtableTable.increment").startSpan();
     try (Scope scope = TRACER.withSpan(span)) {
       ReadModifyWriteRow request = hbaseAdapter.adapt(increment);
-      return Adapters.ROW_ADAPTER.adaptResponse(clientWrapper.readModifyWriteRow(request));
+      return ApiExceptions.callAndTranslateApiException(
+          clientWrapper.readModifyWriteRowAsync(request));
     } catch (Throwable t) {
       span.setStatus(Status.UNKNOWN);
       throw logAndCreateIOException("increment", increment.getRow(), t);

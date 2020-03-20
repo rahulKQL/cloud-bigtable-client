@@ -16,7 +16,6 @@
 package com.google.cloud.bigtable.hbase.adapters.read;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.hbase.adapters.ResponseAdapter;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Status;
 import java.io.IOException;
@@ -30,18 +29,7 @@ import org.apache.hadoop.hbase.client.ResultScanner;
  * <p>For internal use only - public for technical reasons.
  */
 @InternalApi("For internal usage only")
-public class BigtableResultScannerAdapter<T> {
-
-  private final ResponseAdapter<T, Result> rowAdapter;
-
-  /**
-   * Constructor for BigtableResultScannerAdapter.
-   *
-   * @param rowAdapter a {@link com.google.cloud.bigtable.hbase.adapters.ResponseAdapter} object.
-   */
-  public BigtableResultScannerAdapter(ResponseAdapter<T, Result> rowAdapter) {
-    this.rowAdapter = rowAdapter;
-  }
+public class BigtableResultScannerAdapter {
 
   /**
    * adapt.
@@ -53,21 +41,21 @@ public class BigtableResultScannerAdapter<T> {
    * @return a {@link org.apache.hadoop.hbase.client.ResultScanner} object.
    */
   public ResultScanner adapt(
-      final com.google.cloud.bigtable.grpc.scanner.ResultScanner<T> bigtableResultScanner,
+      final com.google.cloud.bigtable.grpc.scanner.ResultScanner<Result> bigtableResultScanner,
       final Span span) {
     return new AbstractClientScanner() {
       int rowCount = 0;
 
       @Override
       public Result next() throws IOException {
-        T row = bigtableResultScanner.next();
+        Result row = bigtableResultScanner.next();
         if (row == null) {
           // Null signals EOF.
           span.end();
           return null;
         }
         rowCount++;
-        return rowAdapter.adaptResponse(row);
+        return row;
       }
 
       @Override

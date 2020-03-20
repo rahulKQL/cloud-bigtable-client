@@ -68,7 +68,7 @@ public class DataClientClassicApi implements DataClientWrapper {
   private final BigtableDataClient delegate;
   private final RequestContext requestContext;
 
-  DataClientClassicApi(BigtableSession session, RequestContext requestContext) {
+  public DataClientClassicApi(BigtableSession session, RequestContext requestContext) {
     this.session = session;
     this.delegate = session.getDataClient();
     this.requestContext = requestContext;

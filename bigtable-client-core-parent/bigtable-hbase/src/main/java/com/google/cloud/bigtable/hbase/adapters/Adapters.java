@@ -16,7 +16,6 @@
 package com.google.cloud.bigtable.hbase.adapters;
 
 import com.google.api.core.InternalApi;
-import com.google.cloud.bigtable.grpc.scanner.FlatRow;
 import com.google.cloud.bigtable.hbase.adapters.filters.BigtableWhileMatchResultScannerAdapter;
 import com.google.cloud.bigtable.hbase.adapters.filters.FilterAdapter;
 import com.google.cloud.bigtable.hbase.adapters.read.BigtableResultScannerAdapter;
@@ -54,12 +53,12 @@ public final class Adapters {
   /** Constant <code>SCAN_ADAPTER</code> */
   public static final ScanAdapter SCAN_ADAPTER = new ScanAdapter(FILTER_ADAPTER, ROW_RANGE_ADAPTER);
   /** Constant <code>BIGTABLE_RESULT_SCAN_ADAPTER</code> */
-  public static final BigtableResultScannerAdapter<FlatRow> BIGTABLE_RESULT_SCAN_ADAPTER =
-      new BigtableResultScannerAdapter<>(FLAT_ROW_ADAPTER);
+  public static final BigtableResultScannerAdapter BIGTABLE_RESULT_SCAN_ADAPTER =
+      new BigtableResultScannerAdapter();
   /** Constant <code>BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER</code> */
   public static final BigtableWhileMatchResultScannerAdapter
       BIGTABLE_WHILE_MATCH_RESULT_RESULT_SCAN_ADAPTER =
-          new BigtableWhileMatchResultScannerAdapter(FLAT_ROW_ADAPTER);
+          new BigtableWhileMatchResultScannerAdapter();
   /** Constant <code>GET_ADAPTER</code> */
   public static final GetAdapter GET_ADAPTER = new GetAdapter(SCAN_ADAPTER);
 
