@@ -15,8 +15,9 @@
  */
 package com.google.cloud.bigtable.hbase.adapters.filters;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -74,11 +75,12 @@ public class TestBigtableWhileMatchResultScannerAdapter {
                     Bytes.toBytes("family"),
                     Bytes.toBytes("q"),
                     10000L,
-                    Bytes.toBytes("value"))));
+                    Bytes.toBytes("value"),
+                    ImmutableList.<String>of())));
     when(mockBigtableResultScanner.next()).thenReturn(expectedResult);
 
     ResultScanner scanner = adapter.adapt(mockBigtableResultScanner, mockSpan);
-    assertSame(expectedResult, scanner.next());
+    assertArrayEquals(expectedResult.rawCells(), scanner.next().rawCells());
     verify(mockBigtableResultScanner).next();
     verify(mockSpan, times(0)).end();
   }
@@ -104,8 +106,9 @@ public class TestBigtableWhileMatchResultScannerAdapter {
                     Bytes.toBytes("value"),
                     ImmutableList.of("a-out"))));
     when(mockBigtableResultScanner.next()).thenReturn(expectedResult);
+
     ResultScanner scanner = adapter.adapt(mockBigtableResultScanner, mockSpan);
-    assertSame(expectedResult, scanner.next());
+    assertEquals(0, scanner.next().size());
     verify(mockBigtableResultScanner).next();
     verify(mockSpan, times(0)).end();
   }

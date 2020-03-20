@@ -20,6 +20,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doAnswer;
@@ -226,7 +227,7 @@ public class TestBigtableTable {
                 "family_name",
                 ByteString.copyFromUtf8("q_name"),
                 0,
-                ByteString.EMPTY,
+                ByteString.copyFromUtf8("cell with a label"),
                 Arrays.asList("label-in"))
             .addCell(
                 "family_name",
@@ -245,8 +246,12 @@ public class TestBigtableTable {
     assertEquals("row_key", new String(result.getRow()));
     List<org.apache.hadoop.hbase.Cell> cells =
         result.getColumnCells("family_name".getBytes(), "q_name".getBytes());
-    assertEquals(1, cells.size());
-    assertEquals("value", new String(CellUtil.cloneValue(cells.get(0))));
+
+    // expecting all cells here as FlatRowAdapter does not removes cells with labels
+    assertEquals(2, cells.size());
+
+    assertEquals("cell with a label", new String(CellUtil.cloneValue(cells.get(0))));
+    assertEquals("value", new String(CellUtil.cloneValue(cells.get(1))));
 
     verify(mockBigtableDataClient).readFlatRows(isA(ReadRowsRequest.class));
     verify(mockResultScanner).next();
@@ -270,9 +275,7 @@ public class TestBigtableTable {
     Scan scan = new Scan();
     scan.setFilter(whileMatchFilter);
     org.apache.hadoop.hbase.client.ResultScanner resultScanner = table.getScanner(scan);
-
-    // As FlatRowAdapter removes cells with labels, whileMatchAdapter does not apply.
-    assertEquals(1, resultScanner.next().rawCells().length);
+    assertNull(resultScanner.next());
 
     verify(mockBigtableDataClient).readFlatRows(isA(ReadRowsRequest.class));
     verify(mockResultScanner).next();

@@ -52,7 +52,7 @@ public class TestFlatRowAdapter {
 
     // The rowKey is defined based on the cells, and in this case there are no cells, so there isn't
     // a key.
-    assertEquals(null, instance.adaptToRow(result));
+    assertNull(instance.adaptToRow(result));
   }
 
   @Test
@@ -74,12 +74,11 @@ public class TestFlatRowAdapter {
             .addCell(family1, ByteString.copyFrom(qualifier1), 54321L, ByteString.copyFrom(value1))
             // Same family, same column, but different timestamps.
             .addCell(family1, ByteString.copyFrom(qualifier1), 12345L, ByteString.copyFrom(value2))
-            // With label
             .addCell(
                 family1,
                 ByteString.copyFrom(qualifier1),
                 12345L,
-                ByteString.copyFrom(value2),
+                ByteString.copyFrom(value3),
                 Arrays.asList("label"))
             // Same family, same timestamp, but different column.
             .addCell(family1, ByteString.copyFrom(qualifier2), 54321L, ByteString.copyFrom(value3))
@@ -87,33 +86,32 @@ public class TestFlatRowAdapter {
             .addCell(family2, ByteString.copyFrom(qualifier1), 54321L, ByteString.copyFrom(value4))
             // Same timestamp, but different family qualifier2 column.
             .addCell(family2, ByteString.copyFrom(qualifier2), 54321L, ByteString.copyFrom(value5))
+            // With label
+
             .build();
 
     Result result = instance.adaptResponse(row);
-    assertEquals(5, result.rawCells().length);
+    assertEquals(6, result.rawCells().length);
 
-    List<org.apache.hadoop.hbase.Cell> cells1 =
-        result.getColumnCells(family1.getBytes(), qualifier1);
-    assertEquals(2, cells1.size());
+    List<Cell> cells1 = result.getColumnCells(family1.getBytes(), qualifier1);
+    assertEquals(3, cells1.size());
     assertEquals(Bytes.toString(value1), Bytes.toString(CellUtil.cloneValue(cells1.get(0))));
     assertEquals(Bytes.toString(value2), Bytes.toString(CellUtil.cloneValue(cells1.get(1))));
+    assertEquals(Bytes.toString(value3), Bytes.toString(CellUtil.cloneValue(cells1.get(2))));
 
-    List<org.apache.hadoop.hbase.Cell> cells2 =
-        result.getColumnCells(family1.getBytes(), qualifier2);
+    List<Cell> cells2 = result.getColumnCells(family1.getBytes(), qualifier2);
     assertEquals(1, cells2.size());
     assertEquals(Bytes.toString(value3), Bytes.toString(CellUtil.cloneValue(cells2.get(0))));
 
-    List<org.apache.hadoop.hbase.Cell> cells3 =
-        result.getColumnCells(family2.getBytes(), qualifier1);
+    List<Cell> cells3 = result.getColumnCells(family2.getBytes(), qualifier1);
     assertEquals(1, cells3.size());
     assertEquals(Bytes.toString(value4), Bytes.toString(CellUtil.cloneValue(cells3.get(0))));
 
-    List<org.apache.hadoop.hbase.Cell> cells4 =
-        result.getColumnCells(family2.getBytes(), qualifier2);
+    List<Cell> cells4 = result.getColumnCells(family2.getBytes(), qualifier2);
     assertEquals(1, cells4.size());
     assertEquals(Bytes.toString(value5), Bytes.toString(CellUtil.cloneValue(cells4.get(0))));
 
-    // The duplicate row and label cells have been removed. The timestamp micros get converted to
+    // The duplicate row have been removed. The timestamp micros get converted to
     // millisecond accuracy.
     FlatRow expected =
         FlatRow.newBuilder()
@@ -122,6 +120,13 @@ public class TestFlatRowAdapter {
             .addCell(family1, ByteString.copyFrom(qualifier1), 54000L, ByteString.copyFrom(value1))
             // Same family, same column, but different timestamps.
             .addCell(family1, ByteString.copyFrom(qualifier1), 12000L, ByteString.copyFrom(value2))
+            // with Labels
+            .addCell(
+                family1,
+                ByteString.copyFrom(qualifier1),
+                12000L,
+                ByteString.copyFrom(value3),
+                Arrays.asList("label"))
             // Same family, same timestamp, but different column.
             .addCell(family1, ByteString.copyFrom(qualifier2), 54000L, ByteString.copyFrom(value3))
             // Same column, same timestamp, but different family.

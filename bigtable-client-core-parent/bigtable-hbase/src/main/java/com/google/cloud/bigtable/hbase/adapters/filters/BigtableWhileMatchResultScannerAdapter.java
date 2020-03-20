@@ -17,6 +17,7 @@ package com.google.cloud.bigtable.hbase.adapters.filters;
 
 import com.google.api.core.InternalApi;
 import com.google.cloud.bigtable.hbase.adapters.read.RowCell;
+import com.google.common.collect.ImmutableList;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Status;
 import java.io.IOException;
@@ -53,19 +54,14 @@ public class BigtableWhileMatchResultScannerAdapter {
     return new AbstractClientScanner() {
       @Override
       public Result next() throws IOException {
-        Result row = bigtableResultScanner.next();
-        if (row == null) {
+        Result result = bigtableResultScanner.next();
+        if (result == null) {
           // Null signals EOF.
           span.end();
           return null;
         }
 
-        if (!hasMatchingLabels(row)) {
-          close();
-          return null;
-        }
-
-        return row;
+        return hasMatchingLabels(result);
       }
 
       @Override
@@ -89,36 +85,45 @@ public class BigtableWhileMatchResultScannerAdapter {
       public boolean renewLease() {
         throw new UnsupportedOperationException("renewLease");
       }
-    };
-  }
 
-  /**
-   * Returns {@code true} iff there are matching {@link WhileMatchFilter} labels or no {@link
-   * WhileMatchFilter} labels.
-   *
-   * @param result a {@link Result} object.
-   * @return a boolean value.
-   */
-  private static boolean hasMatchingLabels(Result result) {
-    int inLabelCount = 0;
-    int outLabelCount = 0;
-    for (Cell cell : result.rawCells()) {
-      for (String label : ((RowCell) cell).getLabels()) {
-        // TODO(kevinsi4508): Make sure {@code label} is a {@link WhileMatchFilter} label.
-        // TODO(kevinsi4508): Handle multiple {@link WhileMatchFilter} labels.
-        if (label.endsWith(WHILE_MATCH_FILTER_IN_LABEL_SUFFIX)) {
-          inLabelCount++;
-        } else if (label.endsWith(WHILE_MATCH_FILTER_OUT_LABEL_SUFFIX)) {
-          outLabelCount++;
+      /**
+       * Returns {@code true} iff there are matching {@link WhileMatchFilter} labels or no {@link
+       * WhileMatchFilter} labels.
+       *
+       * @param result a {@link Result} object.
+       * @return a boolean value.
+       */
+      private Result hasMatchingLabels(Result result) {
+        int inLabelCount = 0;
+        int outLabelCount = 0;
+        ImmutableList.Builder<Cell> cells = ImmutableList.builder();
+
+        for (Cell cell : result.rawCells()) {
+          RowCell rowCell = (RowCell) cell;
+
+          for (String label : rowCell.getLabels()) {
+            // TODO(kevinsi4508): Make sure {@code label} is a {@link WhileMatchFilter} label.
+            // TODO(kevinsi4508): Handle multiple {@link WhileMatchFilter} labels.
+            if (label.endsWith(WHILE_MATCH_FILTER_IN_LABEL_SUFFIX)) {
+              inLabelCount++;
+            } else if (label.endsWith(WHILE_MATCH_FILTER_OUT_LABEL_SUFFIX)) {
+              outLabelCount++;
+            }
+          }
+
+          if (rowCell.getLabels().isEmpty()) {
+            cells.add(rowCell);
+          }
         }
+
+        // Checks if there is mismatching {@link WhileMatchFilter} label.
+        if (inLabelCount != outLabelCount) {
+          close();
+          return null;
+        }
+
+        return Result.create(cells.build());
       }
-    }
-
-    // Checks if there is mismatching {@link WhileMatchFilter} label.
-    if (inLabelCount != outLabelCount) {
-      return false;
-    }
-
-    return true;
+    };
   }
 }
