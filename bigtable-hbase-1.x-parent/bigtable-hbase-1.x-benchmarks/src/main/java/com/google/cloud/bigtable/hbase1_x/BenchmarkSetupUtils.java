@@ -43,7 +43,9 @@ import org.apache.hadoop.hbase.util.Bytes;
 class BenchmarkSetupUtils {
 
   private static final Logger LOG = Logger.getLogger(BenchmarkSetupUtils.class.getName());
-  private static final long TOTAL_DATA_IN_BYTES = 1024 * 1024 * 1024;
+
+  // We are gonna read and write only 100MB of data
+  private static final long TOTAL_DATA_IN_BYTES = 100 * 1024 * 1024;
   private static final Pattern CELL_PATTERN = Pattern.compile("cellsPerRow/(\\d+)/cellSize/(\\d+)");
   private static final Random random = new Random();
 
@@ -76,6 +78,7 @@ class BenchmarkSetupUtils {
     try (BufferedMutator bufferedMutator =
         connection.getBufferedMutator(rowShapeParams.tableName)) {
 
+      byte[] value = getRandomBytes(rowShapeParams.cellSize);
       for (int rowInd = 0; rowInd < rowShapeParams.totalRows; rowInd++) {
         // zero padded row-key
         Put put = new Put(Bytes.toBytes(READ_ROW_PREFIX + String.format("%010d", rowInd)));
@@ -85,7 +88,7 @@ class BenchmarkSetupUtils {
               COL_FAMILY,
               Bytes.toBytes("qualifier-" + String.format("%06d", cellInd)),
               SAMPLE_TIMESTAMP,
-              getRandomBytes(rowShapeParams.cellSize));
+              value);
         }
         bufferedMutator.mutate(put);
       }
