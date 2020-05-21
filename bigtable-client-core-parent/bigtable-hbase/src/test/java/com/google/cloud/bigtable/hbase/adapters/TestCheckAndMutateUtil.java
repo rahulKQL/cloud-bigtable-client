@@ -327,4 +327,20 @@ public class TestCheckAndMutateUtil {
     checkPutMutation(result.getFalseMutations(0));
     Assert.assertEquals(expected, result.getPredicateFilter());
   }
+
+  @Test
+  public void testWithEmptyByteArray() throws DoNotRetryIOException {
+    CheckAndMutateUtil.RequestBuilder underTest = createRequestBuilder();
+
+    CheckAndMutateRowRequest result =
+        underTest
+            .qualifier(qual)
+            .ifMatches(CompareOp.EQUAL, new byte[0])
+            .withPut(PUT)
+            .build()
+            .toProto(REQUEST_CONTEXT);
+
+    Assert.assertEquals(1, result.getFalseMutationsCount());
+    checkPutMutation(result.getFalseMutations(0));
+  }
 }
