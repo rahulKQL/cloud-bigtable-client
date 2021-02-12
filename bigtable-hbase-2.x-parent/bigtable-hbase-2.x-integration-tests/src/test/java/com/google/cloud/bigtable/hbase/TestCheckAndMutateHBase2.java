@@ -15,18 +15,41 @@
  */
 package com.google.cloud.bigtable.hbase;
 
+import static com.google.cloud.bigtable.hbase.test_env.SharedTestEnvRule.COLUMN_FAMILY;
+
 import java.io.IOException;
 import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.RowMutations;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.Assert;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("deprecation")
 public class TestCheckAndMutateHBase2 extends AbstractTestCheckAndMutate {
+
+  @Test
+  public void testWithEmptyByteString() throws IOException {
+    byte[] rowKey = dataHelper.randomData("rowKey-");
+    byte[] qualToCheck = dataHelper.randomData("toCheck-");
+    Table table = getDefaultTable();
+    Put someRandomPut =
+        new Put(rowKey).addColumn(COLUMN_FAMILY, qualToCheck, Bytes.toBytes("value"));
+
+    boolean success =
+        table
+            .checkAndMutate(rowKey, COLUMN_FAMILY)
+            .ifEquals(new byte[0])
+            .qualifier(qualToCheck)
+            .thenPut(someRandomPut);
+    Assert.assertTrue(success);
+  }
 
   @Override
   protected boolean checkAndPut(byte[] row, byte[] family, byte[] qualifier, byte[] value, Put put)

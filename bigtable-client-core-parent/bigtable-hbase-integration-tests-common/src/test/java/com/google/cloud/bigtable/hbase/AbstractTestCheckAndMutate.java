@@ -55,6 +55,11 @@ public abstract class AbstractTestCheckAndMutate extends AbstractTest {
       success = checkAndPut(rowKey, SharedTestEnvRule.COLUMN_FAMILY, qual, null, put);
       Assert.assertTrue(success);
 
+      // Put with a empty byte array
+      put = new Put(rowKey).addColumn(SharedTestEnvRule.COLUMN_FAMILY, qual, value1);
+      success = checkAndPut(rowKey, SharedTestEnvRule.COLUMN_FAMILY, qual, new byte[0], put);
+      Assert.assertTrue(success);
+
       // Fail on null check, now there's a value there
       put = new Put(rowKey).addColumn(SharedTestEnvRule.COLUMN_FAMILY, qual, value2);
       success = checkAndPut(rowKey, SharedTestEnvRule.COLUMN_FAMILY, qual, null, put);
